@@ -1,0 +1,255 @@
+<script>
+    import { createEventDispatcher } from "svelte";
+    import { fade } from "svelte/transition";
+
+    /** @type {any[]} */
+    export let items = [];
+    /** @type {boolean} */
+    export let loading = false;
+    /** @type {string} */
+    export let type = "home"; // 'home' | 'favorites' | 'search' | 'current'
+    /** @type {any[]} */
+    export let favoritesList = []; // List of favorite items to check status
+
+    const dispatch = createEventDispatcher();
+
+    /** @type {Set<string>} */
+    const notifiedErrors = new Set();
+
+    /**
+     * @param {string} id
+     */
+    function handleImageError(id) {
+        if (!notifiedErrors.has(id)) {
+            notifiedErrors.add(id);
+            console.error(`[GOWER] Error loading image: ${id}`);
+        }
+    }
+
+    /**
+     * @param {string} id
+     */
+    /**
+     * @param {string} id
+     */
+    function isFavorite(id) {
+        return favoritesList.some((f) => f.id === id);
+    }
+</script>
+
+<div class="grid premium-scroll">
+    {#each items as item (item.id)}
+        <div
+            class="card glass-card"
+            onclick={() => dispatch("preview", item)}
+            oncontextmenu={(e) => {
+                e.preventDefault();
+                dispatch("contextmenu", { item, x: e.clientX, y: e.clientY });
+            }}
+            role="button"
+            tabindex="0"
+            onkeydown={(e) => e.key === "Enter" && dispatch("preview", item)}
+        >
+            <img
+                src={item.thumbnail}
+                alt={item.id}
+                loading="lazy"
+                onerror={(e) => {
+                    handleImageError(item.id);
+                    const target = /** @type {HTMLImageElement} */ (
+                        e.currentTarget
+                    );
+                    target.src =
+                        "https://placehold.co/400x400/1a1a2e/bb86fc?text=No%20Image";
+                }}
+            />
+
+            <div class="overlay">
+                <div class="actions">
+                    <button
+                        onclick={() => dispatch("block", item)}
+                        title="Añadir a lista negra"
+                        class="block-btn"
+                    >
+                        <span class="material-icons">visibility_off</span>
+                    </button>
+
+                    {#if type !== "favorites"}
+                        <button
+                            onclick={() => dispatch("favorite", item)}
+                            title={isFavorite(item.id)
+                                ? "Quitar de favoritos"
+                                : "Añadir a favoritos"}
+                        >
+                            <span
+                                class="material-icons"
+                                class:active={isFavorite(item.id)}
+                            >
+                                {isFavorite(item.id)
+                                    ? "favorite"
+                                    : "favorite_border"}
+                            </span>
+                        </button>
+                    {/if}
+
+                    <button
+                        onclick={() => dispatch("download", item)}
+                        title="Descargar"
+                        class="download-btn"
+                    >
+                        <span class="material-icons">download</span>
+                    </button>
+
+                    {#if type === "favorites"}
+                        <button
+                            class="danger"
+                            onclick={() => dispatch("favorite", item)}
+                            title="Eliminar"
+                        >
+                            <span class="material-icons">delete</span>
+                        </button>
+                    {/if}
+                </div>
+            </div>
+
+            {#if isFavorite(item.id) && type !== "favorites"}
+                <div class="fav-badge">
+                    <span class="material-icons">favorite</span>
+                </div>
+            {/if}
+        </div>
+    {/each}
+
+    {#if loading && items.length === 0}
+        {#each Array(9) as _}
+            <div class="card skeleton"></div>
+        {/each}
+    {/if}
+</div>
+
+<style>
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: auto;
+        align-content: start;
+        gap: 5px;
+        padding: 5px 0; /* No lateral padding, parent handles it */
+        height: auto;
+    }
+
+    .card {
+        position: relative;
+        aspect-ratio: 1/1;
+        border-radius: var(--radius-s);
+        overflow: hidden;
+        background: var(--surface-container);
+        border: 1px solid transparent;
+        transition: border-color 0.2s;
+    }
+
+    .card:hover {
+        border-color: var(--primary);
+    }
+
+    .card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.4s;
+    }
+    .card:hover img {
+        transform: scale(1.05);
+    }
+
+    .overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+            to top,
+            rgba(0, 0, 0, 0.8),
+            transparent 40%
+        );
+        opacity: 0;
+        transition: opacity 0.2s;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 8px;
+    }
+
+    .card:hover .overlay {
+        opacity: 1;
+    }
+
+    .actions {
+        display: flex;
+        justify-content: center;
+        gap: 8px; /* Reduced gap to fit more buttons */
+    }
+
+    button {
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    button:hover {
+        background: var(--primary);
+        color: black;
+    }
+    button.danger:hover,
+    button.block-btn:hover {
+        background: var(--error);
+        color: white;
+    }
+    button.download-btn:hover {
+        background: #4caf50; /* Green for download */
+        color: white;
+    }
+
+    .material-icons {
+        font-size: 20px;
+    }
+    .material-icons.active {
+        color: var(--error);
+    }
+
+    .fav-badge {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        color: var(--error);
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+        pointer-events: none;
+    }
+
+    .skeleton {
+        background: linear-gradient(
+            90deg,
+            var(--surface-container) 25%,
+            var(--surface-container-high) 50%,
+            var(--surface-container) 75%
+        );
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+    }
+    @keyframes loading {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
+    }
+</style>

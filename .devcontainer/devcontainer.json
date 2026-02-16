@@ -1,0 +1,25 @@
+{
+  "name": "Tauri Rust App (Ubuntu)",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "esbenp.prettier-vscode",
+        "tauri-apps.tauri-vscode",
+        "github.vscode-github-actions"
+      ],
+      "settings": {
+        "lldb.executable": "/usr/bin/lldb",
+        "files.watcherExclude": {
+          "**/target/**": true
+        },
+        "rust-analyzer.checkOnSave.command": "clippy"
+      }
+    }
+  },
+  "forwardPorts": [1420],
+  "remoteUser": "vscode"
+}
