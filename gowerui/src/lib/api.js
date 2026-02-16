@@ -185,6 +185,7 @@ export const gower = {
         return runGower(['config', 'provider', 'add', name, url]);
     },
     getCurrentWallpapers: () => runGower(['status', '--wallpapers', '--json']),
+    getMonitors: () => runGower(['status', '--monitors', '--json']),
     getFeedColors: () => runGower(['feed', 'get', 'colors', '--json']),
     getFavoritesColors: () => runGower(['favorites', 'get', 'colors', '--json']),
     /** @param {string} id */

@@ -20,6 +20,8 @@
     let favoritesModel = $state([]);
     /** @type {any[]} */
     let currentWallpapers = $state([]); // Active wallpapers
+    /** @type {any[]} */
+    let monitors = $state([]);
     let loading = $state(false);
 
     /** @type {{cache_path: string, config_path: string, user_home: string} | null} */
@@ -119,6 +121,34 @@
         try {
             // Need command for wallpaper status, getStatus returns daemon status
             await refreshCurrentWallpapers();
+            await loadMonitors();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function loadMonitors() {
+        if (!appContext) return;
+        try {
+            const result = await gower.getMonitors();
+            if (result && Array.isArray(result.monitors)) {
+                monitors = result.monitors;
+            }
+        } catch (e) {
+            console.error("Failed to load monitors:", e);
+        }
+    }
+
+    /**
+     * @param {any} item
+     * @param {string} [monitorId]
+     */
+    async function setWallpaper(item, monitorId = "") {
+        if (!item) return;
+        try {
+            await gower.setWallpaper(item.id, monitorId);
+            await refreshCurrentWallpapers();
+            contextMenu.open = false;
         } catch (e) {
             console.error(e);
         }
@@ -127,14 +157,20 @@
     /**
      * @param {any} item
      */
-    async function setWallpaper(item) {
-        if (!item) return;
+    async function setOnAllMonitors(item) {
+        if (!item || monitors.length === 0) return;
+        loading = true;
         try {
-            await gower.setWallpaper(item.id);
+            // Sequential for safety, or Promise.all if supported well by backend
+            for (const m of monitors) {
+                await gower.setWallpaper(item.id, m.ID);
+            }
             await refreshCurrentWallpapers();
             contextMenu.open = false;
         } catch (e) {
             console.error(e);
+        } finally {
+            loading = false;
         }
     }
 
@@ -373,7 +409,7 @@
                     loadConfig(),
                     loadFavorites(),
                     loadHome(true),
-                    refreshCurrentWallpapers(),
+                    loadCurrentWallpapers(),
                 ]);
 
                 // Run update in background if needed, don't block UI
@@ -518,25 +554,62 @@
 
     <!-- Preview Modal -->
     {#if previewOpen && previewItem}
-        <div class="modal-backdrop" onclick={() => (previewOpen = false)}>
+        <div
+            class="modal-backdrop"
+            onclick={() => (previewOpen = false)}
+            onkeydown={(e) => e.key === "Escape" && (previewOpen = false)}
+            role="presentation"
+        >
             <div
                 class="preview-modal glass-card"
                 onclick={(e) => e.stopPropagation()}
+                onkeydown={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                tabindex="-1"
             >
                 <img src={previewItem.thumbnail} alt={previewItem.id} />
                 <div class="preview-info">
-                    <h3>ID: {previewItem.id}</h3>
-                    <p>Provider: {previewItem.provider || "Local"}</p>
+                    <div class="preview-header">
+                        <h3>ID: {previewItem.id}</h3>
+                        <p class="provider">
+                            Provider: {previewItem.provider || "Local"}
+                        </p>
+                    </div>
+
+                    <div class="monitor-selection">
+                        <p class="section-title">Establecer en:</p>
+                        <div class="monitor-buttons">
+                            <button
+                                class="monitor-chip all"
+                                onclick={() => {
+                                    setOnAllMonitors(previewItem);
+                                    previewOpen = false;
+                                }}
+                            >
+                                <span class="material-icons"
+                                    >tab_unselected</span
+                                >
+                                Todos
+                            </button>
+                            {#each monitors as m}
+                                <button
+                                    class="monitor-chip"
+                                    onclick={() => {
+                                        setWallpaper(previewItem, m.ID);
+                                        previewOpen = false;
+                                    }}
+                                >
+                                    <span class="material-icons"
+                                        >{m.Primary ? "star" : "monitor"}</span
+                                    >
+                                    {m.Name}
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+
                     <div class="preview-actions">
-                        <button
-                            class="premium-btn"
-                            onclick={() => {
-                                setWallpaper(previewItem);
-                                previewOpen = false;
-                            }}
-                        >
-                            Establecer
-                        </button>
                         <button
                             class="premium-btn secondary"
                             onclick={() => (previewOpen = false)}
@@ -551,16 +624,25 @@
 
     <!-- Context Menu -->
     {#if contextMenu.open}
-        <div class="context-menu-backdrop" onclick={closeContextMenu}>
+        <div
+            class="context-menu-backdrop"
+            onclick={closeContextMenu}
+            onkeydown={(e) => e.key === "Escape" && closeContextMenu()}
+            role="presentation"
+        >
             <div
                 class="context-menu glass-card"
                 style="top: {contextMenu.y}px; left: {contextMenu.x}px;"
                 onclick={(e) => e.stopPropagation()}
+                onkeydown={(e) => e.stopPropagation()}
+                role="menu"
+                tabindex="-1"
             >
                 <button onclick={() => setWallpaper(contextMenu.item)}>
                     <span class="material-icons">wallpaper</span>
                     Establecer fondo
                 </button>
+                <div class="menu-divider"></div>
                 <button onclick={() => openUrl(contextMenu.item)}>
                     <span class="material-icons">link</span>
                     Abrir URL
@@ -735,12 +817,81 @@
 
     .preview-info {
         padding: var(--spacing-m);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .preview-header h3 {
+        margin: 0;
+        font-size: 16px;
+        color: var(--on-surface);
+    }
+
+    .preview-header .provider {
+        margin: 4px 0 0 0;
+        font-size: 13px;
+        opacity: 0.6;
+    }
+
+    .monitor-selection {
+        background: var(--surface-container);
+        padding: 12px;
+        border-radius: var(--radius-m);
+    }
+
+    .section-title {
+        margin: 0 0 10px 0;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.8;
+    }
+
+    .monitor-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .monitor-chip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: var(--surface-container-high);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        color: var(--on-surface);
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .monitor-chip:hover {
+        background: var(--primary);
+        color: black;
+        border-color: var(--primary);
+    }
+
+    .monitor-chip.all {
+        background: var(--surface-container-highest);
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+    .monitor-chip.all:hover {
+        background: var(--primary);
+        color: black;
+    }
+
+    .monitor-chip .material-icons {
+        font-size: 16px;
     }
 
     .preview-actions {
         display: flex;
-        gap: 12px;
-        margin-top: var(--spacing-m);
+        justify-content: flex-end;
     }
 
     .context-menu {
@@ -775,6 +926,12 @@
     .context-menu button .material-icons {
         font-size: 18px;
         opacity: 0.7;
+    }
+
+    .menu-divider {
+        height: 1px;
+        background: var(--glass-border);
+        margin: 4px 8px;
     }
 
     /* Home Layout Specifics */
