@@ -69,12 +69,38 @@ fn run_gower_command(app: tauri::AppHandle, args: Vec<String>) -> Result<String,
     }
 }
 
+#[tauri::command]
+fn check_battery() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(entries) = std::fs::read_dir("/sys/class/power_supply/") {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with("BAT") {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+    #[cfg(target_os = "windows")]
+    {
+        // Simple heuristic for now, or use winapi for real check
+        true 
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    {
+        true
+    }
+}
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![run_gower_command, get_app_context])
+        .invoke_handler(tauri::generate_handler![run_gower_command, get_app_context, check_battery])
         .setup(|app| {
             let quit_i = MenuItem::with_id(app, "quit", "Salir", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Abrir Gower", true, None::<&str>)?;

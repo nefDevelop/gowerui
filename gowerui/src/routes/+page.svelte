@@ -35,6 +35,30 @@
     /** @type {string[]} */
     let favoritesColors = $state([]);
 
+    // Search State (Persisted)
+    /** @type {any[]} */
+    let searchResults = $state([]);
+    let searchQuery = $state("");
+    let searchPage = $state(1);
+    let selectedProvider = $state("wallhaven");
+    let lastSearchTime = $state(0);
+
+    // PERSISTENCE: Save search to localStorage
+    $effect(() => {
+        if (lastSearchTime > 0) {
+            localStorage.setItem(
+                "gower_search_data",
+                JSON.stringify({
+                    searchResults,
+                    searchQuery,
+                    searchPage,
+                    selectedProvider,
+                    lastSearchTime,
+                }),
+            );
+        }
+    });
+
     // Dialog State
     let deleteDialogOpen = $state(false);
     let itemToDelete = $state(null);
@@ -47,6 +71,21 @@
     let contextMenu = $state({ open: false, x: 0, y: 0, item: null });
 
     const appWindow = getCurrentWindow();
+
+    /** @type {any[]} */
+    let notifications = $state([]);
+
+    /**
+     * @param {string} message
+     * @param {'success' | 'error' | 'info'} type
+     */
+    function notify(message, type = "success") {
+        const id = Date.now();
+        notifications.push({ id, message, type });
+        setTimeout(() => {
+            notifications = notifications.filter((n) => n.id !== id);
+        }, 3000);
+    }
 
     const sortOptions = [
         "Smart",
@@ -79,7 +118,12 @@
         // The grid will update once data arrives.
 
         try {
-            const result = await gower.getFeed(feedPage, 9, selectedColor);
+            const result = await gower.getFeed(
+                feedPage,
+                9,
+                selectedColor,
+                currentSort.toLowerCase(),
+            );
             /** @type {any[]} */
             let newItems = mapThumbnails(result || [], appContext.cache_path);
 
@@ -144,13 +188,69 @@
      * @param {string} [monitorId]
      */
     async function setWallpaper(item, monitorId = "") {
-        if (!item) return;
+        if (!item) {
+            console.error("setWallpaper: missing item", item);
+            return;
+        }
+
+        // We use the ID but remove the "local_" prefix if it exists,
+        // as Gower expects the base ID.
+        const idToSend = item.id.replace("local_", "");
+
+        const snapItem = $state.snapshot(item);
+        console.log(
+            `[UI] Setting wallpaper: Source=${snapItem.source}, ID=${idToSend}, Monitor=${monitorId}`,
+        );
         try {
-            await gower.setWallpaper(item.id, monitorId);
+            await gower.setWallpaper(idToSend, monitorId);
             await refreshCurrentWallpapers();
             contextMenu.open = false;
         } catch (e) {
             console.error(e);
+        }
+    }
+
+    /**
+     * @param {any} item
+     */
+    async function handleBlock(item) {
+        if (!item) return;
+        const snap = $state.snapshot(item);
+        console.group(`[ACTION] Blacklist: ${snap.id}`);
+        try {
+            await gower.blacklist(snap.id);
+            // Visual feedback: remove from models
+            feedModel = feedModel.filter((i) => i.id !== snap.id);
+            if (searchResults) {
+                searchResults = searchResults.filter((i) => i.id !== snap.id);
+            }
+            favoritesModel = favoritesModel.filter((i) => i.id !== snap.id);
+            notify("Imagen añadida a la lista negra", "success");
+            console.log("Success: Item removed from view");
+        } catch (e) {
+            notify("Error al añadir a la lista negra", "error");
+            console.error("Failed to blacklist item:", e);
+        } finally {
+            console.groupEnd();
+        }
+    }
+
+    /**
+     * @param {any} item
+     */
+    async function handleDownload(item) {
+        if (!item) return;
+        const snap = $state.snapshot(item);
+        console.group(`[ACTION] Download: ${snap.id}`);
+        try {
+            await gower.download(snap.id);
+            notify("Descarga iniciada", "success");
+            console.log("Success: Download command sent to backend");
+        } catch (e) {
+            notify("Error al iniciar descarga", "error");
+            console.error("Download failed:", e);
+        } finally {
+            console.groupEnd();
         }
     }
 
@@ -326,16 +426,21 @@
      * @param {any} item
      */
     async function confirmDelete(item) {
-        // Backend delete logic
-        // await gower.delete(item.id);
+        if (!item) return;
+        try {
+            await gower.deleteWallpaper(item.id);
 
-        // Update models
-        feedModel = feedModel.filter(
-            (/** @type {any} */ i) => i.id !== item.id,
-        );
-        currentWallpapers = currentWallpapers.filter(
-            (/** @type {any} */ i) => i.id !== item.id,
-        );
+            // Update models locally
+            feedModel = feedModel.filter((i) => i.id !== item.id);
+            currentWallpapers = currentWallpapers.filter(
+                (i) => i.id !== item.id,
+            );
+
+            // Refresh to fill the grid (refetch the current page)
+            await loadHome(false);
+        } catch (e) {
+            console.error("Failed to delete wallpaper:", e);
+        }
     }
 
     // --- EVENTS ---
@@ -390,9 +495,26 @@
         // Only react to currentTab change
         const tab = currentTab;
         untrack(() => {
-            if (tab === "home" && feedModel.length === 0) loadHome();
+            if (tab === "home") {
+                if (feedModel.length === 0) loadHome();
+                loadCurrentWallpapers(); // Refresh active status
+            }
             if (tab === "favorites") loadFavorites();
-            if (tab === "settings") loadConfig();
+
+            // Sync daemon status specifically when entering settings
+            if (tab === "settings") {
+                loadConfig();
+            }
+
+            // Check search expiration (15 minutes across sessions)
+            const now = Date.now();
+            if (lastSearchTime > 0 && now - lastSearchTime > 900000) {
+                searchResults = [];
+                searchQuery = "";
+                searchPage = 1;
+                lastSearchTime = 0;
+                localStorage.removeItem("gower_search_data");
+            }
         });
     });
 
@@ -402,13 +524,27 @@
 
         async function init() {
             try {
+                // Restore search from localStorage
+                const saved = localStorage.getItem("gower_search_data");
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    const now = Date.now();
+                    if (now - data.lastSearchTime < 900000) {
+                        searchResults = data.searchResults || [];
+                        searchQuery = data.searchQuery || "";
+                        searchPage = data.searchPage || 1;
+                        selectedProvider = data.selectedProvider || "wallhaven";
+                        lastSearchTime = data.lastSearchTime;
+                    }
+                }
+
                 appContext = await getAppContext();
 
                 // Load data concurrently for speed
                 await Promise.all([
                     loadConfig(),
                     loadFavorites(),
-                    loadHome(true),
+                    loadHome(),
                     loadCurrentWallpapers(),
                 ]);
 
@@ -425,7 +561,15 @@
 
         init();
 
+        // Status polling every 10 seconds
+        const pollInterval = setInterval(() => {
+            loadConfig(); // Config also contains status in some apps, but let's be sure
+            loadCurrentWallpapers(); // This also calls getStatus internally usually
+            // refreshStatus() // If we had one, but loadConfig/loadCurrentWallpapers update the models
+        }, 10000);
+
         return () => {
+            clearInterval(pollInterval);
             if (unlistenResize) unlistenResize();
         };
     });
@@ -481,8 +625,8 @@
                                 e.detail.y,
                             )}
                         on:favorite={(e) => toggleFavorite(e.detail)}
-                        on:block={(e) => console.log("Block:", e.detail)}
-                        on:download={(e) => gower.download(e.detail.id)}
+                        on:block={(e) => handleBlock(e.detail)}
+                        on:download={(e) => handleDownload(e.detail)}
                     />
                 </div>
 
@@ -505,7 +649,26 @@
             </div>
         {:else if currentTab === "search"}
             <div in:fade class="tab-pane">
-                <SearchPanel {appContext} />
+                <SearchPanel
+                    {config}
+                    {status}
+                    {favoritesModel}
+                    bind:searchResults
+                    bind:searchQuery
+                    bind:searchPage
+                    bind:selectedProvider
+                    bind:lastSearchTime
+                    on:preview={(e) => handlePreview(e.detail)}
+                    on:contextmenu={(e) =>
+                        handleContextMenu(
+                            e.detail.item,
+                            e.detail.x,
+                            e.detail.y,
+                        )}
+                    on:block={(e) => handleBlock(e.detail)}
+                    on:favorite={(e) => toggleFavorite(e.detail)}
+                    on:download={(e) => handleDownload(e.detail)}
+                />
             </div>
         {:else if currentTab === "favorites"}
             <div in:fade class="tab-pane home-layout">
@@ -531,8 +694,8 @@
                             e.detail.y,
                         )}
                     on:favorite={(e) => toggleFavorite(e.detail)}
-                    on:block={(e) => console.log("Block:", e.detail)}
-                    on:download={(e) => gower.download(e.detail.id)}
+                    on:block={(e) => handleBlock(e.detail)}
+                    on:download={(e) => handleDownload(e.detail)}
                 />
                 {#if favoritesModel.length === 0 && !loading}
                     <div class="empty">No tienes favoritos.</div>
@@ -568,12 +731,21 @@
                 aria-modal="true"
                 tabindex="-1"
             >
+                <button
+                    class="close-preview-btn"
+                    onclick={() => (previewOpen = false)}
+                >
+                    <span class="material-icons">close</span>
+                </button>
                 <img src={previewItem.thumbnail} alt={previewItem.id} />
                 <div class="preview-info">
                     <div class="preview-header">
                         <h3>ID: {previewItem.id}</h3>
                         <p class="provider">
-                            Provider: {previewItem.provider || "Local"}
+                            Provider: {previewItem.provider &&
+                            previewItem.provider.toLowerCase() !== "local"
+                                ? previewItem.provider
+                                : "Local"}
                         </p>
                     </div>
 
@@ -609,13 +781,58 @@
                         </div>
                     </div>
 
-                    <div class="preview-actions">
+                    <div class="quick-actions">
                         <button
-                            class="premium-btn secondary"
-                            onclick={() => (previewOpen = false)}
+                            onclick={async () => {
+                                await gower.blacklist(previewItem.id);
+                                previewOpen = false;
+                                await loadHome(false);
+                            }}
+                            title="Añadir a lista negra"
+                            class="action-btn block"
                         >
-                            Cerrar
+                            <span class="material-icons">visibility_off</span>
                         </button>
+
+                        <button
+                            onclick={() => toggleFavorite(previewItem)}
+                            title="Favoritos"
+                            class="action-btn favorite"
+                        >
+                            <span
+                                class="material-icons"
+                                class:active={favoritesModel.some(
+                                    (f) => f.id === previewItem.id,
+                                )}
+                            >
+                                {favoritesModel.some(
+                                    (f) => f.id === previewItem.id,
+                                )
+                                    ? "favorite"
+                                    : "favorite_border"}
+                            </span>
+                        </button>
+
+                        <button
+                            onclick={() => gower.download(previewItem.id)}
+                            title="Descargar"
+                            class="action-btn download"
+                        >
+                            <span class="material-icons">download</span>
+                        </button>
+
+                        {#if !previewItem.provider || previewItem.provider.toLowerCase() === "local"}
+                            <button
+                                onclick={() => {
+                                    handleDeleteRequest(previewItem);
+                                    previewOpen = false;
+                                }}
+                                title="Eliminar"
+                                class="action-btn delete"
+                            >
+                                <span class="material-icons">delete</span>
+                            </button>
+                        {/if}
                     </div>
                 </div>
             </div>
@@ -638,11 +855,6 @@
                 role="menu"
                 tabindex="-1"
             >
-                <button onclick={() => setWallpaper(contextMenu.item)}>
-                    <span class="material-icons">wallpaper</span>
-                    Establecer fondo
-                </button>
-                <div class="menu-divider"></div>
                 <button onclick={() => openUrl(contextMenu.item)}>
                     <span class="material-icons">link</span>
                     Abrir URL
@@ -654,6 +866,21 @@
             </div>
         </div>
     {/if}
+
+    <div class="notifications">
+        {#each notifications as n (n.id)}
+            <div class="notification {n.type}" transition:fade>
+                <span class="material-icons">
+                    {n.type === "success"
+                        ? "check_circle"
+                        : n.type === "error"
+                          ? "error"
+                          : "info"}
+                </span>
+                {n.message}
+            </div>
+        {/each}
+    </div>
 </main>
 
 <style>
@@ -800,6 +1027,7 @@
     }
 
     .preview-modal {
+        position: relative;
         width: 85%;
         max-width: 400px;
         background: var(--surface);
@@ -807,6 +1035,28 @@
         border-radius: var(--radius-l);
         overflow: hidden;
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .close-preview-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 10;
+        transition: background 0.2s;
+    }
+
+    .close-preview-btn:hover {
+        background: var(--error);
     }
 
     .preview-modal img {
@@ -832,6 +1082,44 @@
         margin: 4px 0 0 0;
         font-size: 13px;
         opacity: 0.6;
+    }
+
+    .quick-actions {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--glass-border);
+    }
+
+    .action-btn {
+        background: var(--surface-container);
+        border: 1px solid var(--glass-border);
+        color: var(--on-surface);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+        background: var(--primary);
+        color: black;
+        transform: translateY(-2px);
+    }
+
+    .action-btn.delete:hover,
+    .action-btn.block:hover {
+        background: var(--error);
+        color: white;
+    }
+
+    .action-btn .material-icons.active {
+        color: var(--error);
     }
 
     .monitor-selection {
@@ -889,11 +1177,6 @@
         font-size: 16px;
     }
 
-    .preview-actions {
-        display: flex;
-        justify-content: flex-end;
-    }
-
     .context-menu {
         position: absolute;
         width: 180px;
@@ -928,12 +1211,6 @@
         opacity: 0.7;
     }
 
-    .menu-divider {
-        height: 1px;
-        background: var(--glass-border);
-        margin: 4px 8px;
-    }
-
     /* Home Layout Specifics */
     .home-layout {
         gap: var(--spacing-s); /* Updated to spacing-s as requested */
@@ -957,5 +1234,43 @@
 
     .material-icons {
         font-size: 20px;
+    }
+    .notifications {
+        position: fixed;
+        bottom: 100px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 1000;
+        pointer-events: none;
+    }
+
+    .notification {
+        background: var(--surface-container-high);
+        color: var(--on-surface);
+        padding: 12px 20px;
+        border-radius: var(--radius-m);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(10px);
+        font-weight: 500;
+        min-width: 200px;
+    }
+
+    .notification.success {
+        border-left: 4px solid #4caf50;
+    }
+    .notification.error {
+        border-left: 4px solid var(--error);
+    }
+    .notification.success span {
+        color: #4caf50;
+    }
+    .notification.error span {
+        color: var(--error);
     }
 </style>

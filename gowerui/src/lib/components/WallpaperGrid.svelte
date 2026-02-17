@@ -67,7 +67,10 @@
             <div class="overlay">
                 <div class="actions">
                     <button
-                        onclick={() => dispatch("block", item)}
+                        onclick={(e) => {
+                            e.stopPropagation();
+                            dispatch("block", item);
+                        }}
                         title="Añadir a lista negra"
                         class="block-btn"
                     >
@@ -76,7 +79,10 @@
 
                     {#if type !== "favorites"}
                         <button
-                            onclick={() => dispatch("favorite", item)}
+                            onclick={(e) => {
+                                e.stopPropagation();
+                                dispatch("favorite", item);
+                            }}
                             title={isFavorite(item.id)
                                 ? "Quitar de favoritos"
                                 : "Añadir a favoritos"}
@@ -93,7 +99,10 @@
                     {/if}
 
                     <button
-                        onclick={() => dispatch("download", item)}
+                        onclick={(e) => {
+                            e.stopPropagation();
+                            dispatch("download", item);
+                        }}
                         title="Descargar"
                         class="download-btn"
                     >
@@ -103,7 +112,10 @@
                     {#if type === "favorites"}
                         <button
                             class="danger"
-                            onclick={() => dispatch("favorite", item)}
+                            onclick={(e) => {
+                                e.stopPropagation();
+                                dispatch("favorite", item);
+                            }}
                             title="Eliminar"
                         >
                             <span class="material-icons">delete</span>
@@ -131,11 +143,11 @@
     .grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        grid-template-rows: auto;
+        grid-auto-rows: min-content;
         align-content: start;
         gap: 5px;
-        padding: 5px 0; /* No lateral padding, parent handles it */
-        height: auto;
+        padding: 5px 0;
+        min-height: 480px;
     }
 
     .card {

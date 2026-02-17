@@ -1,16 +1,25 @@
 <script>
-    import { gower } from "$lib/api";
-    import { createEventDispatcher } from "svelte";
+    import { gower, checkBattery } from "$lib/api";
+    import { createEventDispatcher, onMount } from "svelte";
     import { slide } from "svelte/transition";
+
+    /** @type {{config: any, status: any}} */
+    let { config = $bindable(), status } = $props();
 
     const dispatch = createEventDispatcher();
 
-    export let config = null;
-    export let status = null;
+    let showProviders = $state(false);
+    let newProvider = $state({ name: "", url: "", key: "" });
+    let hasBattery = $state(false);
 
-    let showProviders = false;
-    let newProvider = { name: "", url: "", key: "" };
+    onMount(async () => {
+        hasBattery = await checkBattery();
+    });
 
+    /**
+     * @param {string} key
+     * @param {any} value
+     */
     function updateConfig(key, value) {
         // Optimistic update
         const keys = key.split(".");
@@ -20,13 +29,16 @@
         gower.setConfig(key, value);
     }
 
-    async function toggleDaemon() {
-        const newState = !status?.daemon_running;
+    /** @param {any} e */
+    async function toggleDaemon(e) {
+        const newState = e.target.checked;
         await gower.toggleDaemon(newState);
-        dispatch("refresh");
-    }
 
-    const builtInProviders = ["wallhaven", "reddit"]; // Example, should come from config keys
+        // Wait a small moment for process to settle then refresh UI
+        setTimeout(() => {
+            dispatch("refresh");
+        }, 500);
+    }
 
     import { open } from "@tauri-apps/plugin-dialog";
 
@@ -35,7 +47,7 @@
             const selected = await open({
                 directory: true,
                 multiple: false,
-                defaultPath: config.paths.wallpapers || undefined,
+                defaultPath: config?.paths?.wallpapers || undefined,
             });
             if (selected) {
                 updateConfig("paths.wallpapers", selected);
@@ -52,13 +64,39 @@
             <h3>Daemon</h3>
             <div class="row">
                 <span>Estado del servicio</span>
-                <button
-                    class="toggle-btn"
-                    class:active={status?.daemon_running}
-                    onclick={toggleDaemon}
-                >
-                    {status?.daemon_running ? "ACTIVO" : "INACTIVO"}
-                </button>
+                <div class="status-control">
+                    <span
+                        class="status-text"
+                        class:active={status?.daemon_running ||
+                            status?.daemon?.running ||
+                            status?.running}
+                    >
+                        {status?.daemon_running ||
+                        status?.daemon?.running ||
+                        status?.running
+                            ? "ACTIVO"
+                            : "INACTIVO"}
+                    </span>
+                    <label class="switch">
+                        <input
+                            type="checkbox"
+                            checked={status?.daemon_running ||
+                                status?.daemon?.running ||
+                                status?.running}
+                            onchange={(e) => {
+                                const target = /** @type {HTMLInputElement} */ (
+                                    e.target
+                                );
+                                toggleDaemon(e);
+                                updateConfig(
+                                    "behavior.daemon_enabled",
+                                    target.checked,
+                                );
+                            }}
+                        />
+                        <span class="slider"></span>
+                    </label>
+                </div>
             </div>
             <div class="row">
                 <span>Intervalo (minutos)</span>
@@ -68,21 +106,28 @@
                     onchange={(e) =>
                         updateConfig(
                             "behavior.change_interval",
-                            parseInt(e.target.value),
+                            parseInt(
+                                /** @type {HTMLInputElement} */ (e.target)
+                                    .value,
+                            ),
                         )}
                 />
             </div>
             <div class="row">
                 <span>Auto Descarga</span>
-                <input
-                    type="checkbox"
-                    checked={config?.behavior?.auto_download || false}
-                    onchange={(e) =>
-                        updateConfig(
-                            "behavior.auto_download",
-                            e.target.checked,
-                        )}
-                />
+                <label class="switch">
+                    <input
+                        type="checkbox"
+                        checked={config?.behavior?.auto_download || false}
+                        onchange={(e) =>
+                            updateConfig(
+                                "behavior.auto_download",
+                                /** @type {HTMLInputElement} */ (e.target)
+                                    .checked,
+                            )}
+                    />
+                    <span class="slider"></span>
+                </label>
             </div>
         </div>
 
@@ -90,51 +135,104 @@
             <h3>Comportamiento</h3>
             <div class="row">
                 <span>Respetar Modo Oscuro</span>
-                <input
-                    type="checkbox"
-                    checked={config?.behavior?.respect_dark_mode || false}
-                    onchange={(e) =>
-                        updateConfig(
-                            "behavior.respect_dark_mode",
-                            e.target.checked,
-                        )}
-                />
+                <label class="switch">
+                    <input
+                        type="checkbox"
+                        checked={config?.behavior?.respect_dark_mode || false}
+                        onchange={(e) =>
+                            updateConfig(
+                                "behavior.respect_dark_mode",
+                                /** @type {HTMLInputElement} */ (e.target)
+                                    .checked,
+                            )}
+                    />
+                    <span class="slider"></span>
+                </label>
             </div>
             <div class="row">
                 <span>Solo Favoritos</span>
-                <input
-                    type="checkbox"
-                    checked={config?.behavior?.from_favorites || false}
-                    onchange={(e) =>
-                        updateConfig(
-                            "behavior.from_favorites",
-                            e.target.checked,
-                        )}
-                />
+                <label class="switch">
+                    <input
+                        type="checkbox"
+                        checked={config?.behavior?.from_favorites || false}
+                        onchange={(e) =>
+                            updateConfig(
+                                "behavior.from_favorites",
+                                /** @type {HTMLInputElement} */ (e.target)
+                                    .checked,
+                            )}
+                    />
+                    <span class="slider"></span>
+                </label>
             </div>
             <div class="row">
-                <span>Pausar con Batería Baja</span>
-                <input
-                    type="checkbox"
-                    checked={config?.power?.pause_on_low_battery || false}
-                    onchange={(e) =>
-                        updateConfig(
-                            "power.pause_on_low_battery",
-                            e.target.checked,
-                        )}
-                />
+                <span>Guardar favoritos en carpeta</span>
+                <label class="switch">
+                    <input
+                        type="checkbox"
+                        checked={config?.behavior?.save_favorites_to_folder ||
+                            false}
+                        onchange={(e) =>
+                            updateConfig(
+                                "behavior.save_favorites_to_folder",
+                                /** @type {HTMLInputElement} */ (e.target)
+                                    .checked,
+                            )}
+                    />
+                    <span class="slider"></span>
+                </label>
             </div>
+            {#if hasBattery}
+                <div class="row">
+                    <span>Pausar con Batería Baja</span>
+                    <label class="switch">
+                        <input
+                            type="checkbox"
+                            checked={config?.power?.pause_on_low_battery ||
+                                false}
+                            onchange={(e) =>
+                                updateConfig(
+                                    "power.pause_on_low_battery",
+                                    /** @type {HTMLInputElement} */ (e.target)
+                                        .checked,
+                                )}
+                        />
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="row">
+                    <span>Umbral Batería (%)</span>
+                    <input
+                        type="number"
+                        value={config?.power?.low_battery_threshold || 20}
+                        onchange={(e) =>
+                            updateConfig(
+                                "power.low_battery_threshold",
+                                parseInt(
+                                    /** @type {HTMLInputElement} */ (e.target)
+                                        .value,
+                                ),
+                            )}
+                    />
+                </div>
+            {/if}
+        </div>
+
+        <div class="section glass-card">
+            <h3>Display</h3>
             <div class="row">
-                <span>Umbral Batería (%)</span>
-                <input
-                    type="number"
-                    value={config?.power?.low_battery_threshold || 20}
+                <span>Modo Multi-Monitor</span>
+                <select
+                    value={config?.behavior?.multi_monitor || "distinct"}
                     onchange={(e) =>
                         updateConfig(
-                            "power.low_battery_threshold",
-                            parseInt(e.target.value),
+                            "behavior.multi_monitor",
+                            /** @type {HTMLSelectElement} */ (e.target).value,
                         )}
-                />
+                >
+                    <option value="distinct">Independiente (Distinct)</option>
+                    <option value="clone">Clonar (Clone)</option>
+                </select>
             </div>
         </div>
 
@@ -148,22 +246,42 @@
                         value={config?.paths?.wallpapers || ""}
                         readonly
                     />
-                    <button class="icon-btn" onclick={pickWallpaperFolder}
-                        >📂</button
-                    >
+                    <button class="icon-btn" onclick={pickWallpaperFolder}>
+                        <span class="material-icons">folder_open</span>
+                    </button>
                 </div>
             </div>
             <div class="row">
+                <span>Usar Directorio del Sistema</span>
+                <label class="switch">
+                    <input
+                        type="checkbox"
+                        checked={config?.paths?.use_system_dir || false}
+                        onchange={(e) =>
+                            updateConfig(
+                                "paths.use_system_dir",
+                                /** @type {HTMLInputElement} */ (e.target)
+                                    .checked,
+                            )}
+                    />
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="row">
                 <span>Indexar Carpeta</span>
-                <input
-                    type="checkbox"
-                    checked={config?.paths?.index_wallpapers || false}
-                    onchange={(e) =>
-                        updateConfig(
-                            "paths.index_wallpapers",
-                            e.target.checked,
-                        )}
-                />
+                <label class="switch">
+                    <input
+                        type="checkbox"
+                        checked={config?.paths?.index_wallpapers || false}
+                        onchange={(e) =>
+                            updateConfig(
+                                "paths.index_wallpapers",
+                                /** @type {HTMLInputElement} */ (e.target)
+                                    .checked,
+                            )}
+                    />
+                    <span class="slider"></span>
+                </label>
             </div>
         </div>
 
@@ -180,69 +298,132 @@
         <!-- PROVIDERS SUB-VIEW -->
         <div class="section glass-card" transition:slide>
             <div class="header-row">
-                <button class="back-btn" onclick={() => (showProviders = false)}
-                    >← Volver</button
+                <button
+                    class="back-btn icon-btn"
+                    onclick={() => (showProviders = false)}
                 >
-                <h3>Providers</h3>
+                    <span class="material-icons">arrow_back</span>
+                </button>
+                <h3 class="title-centered">Providers</h3>
             </div>
 
             <div class="providers-list">
-                {#each Object.entries(config.providers || {}) as [key, provider]}
+                {#each Object.entries(config?.providers || {}) as [key, provider]}
                     <div class="provider-item">
                         <div class="provider-header">
                             <span class="provider-name"
                                 >{provider.name || key}</span
                             >
-                            <input
-                                type="checkbox"
-                                checked={provider.enabled}
-                                onchange={(e) =>
-                                    updateConfig(
-                                        `providers.${key}.enabled`,
-                                        e.target.checked,
-                                    )}
-                            />
+                            <label class="switch">
+                                <input
+                                    type="checkbox"
+                                    checked={status?.providers?.[key] === true}
+                                    onchange={(e) =>
+                                        updateConfig(
+                                            `providers.${key}.enabled`,
+                                            /** @type {HTMLInputElement} */ (
+                                                e.target
+                                            ).checked,
+                                        )}
+                                />
+                                <span class="slider"></span>
+                            </label>
                         </div>
-                        {#if provider.hasOwnProperty("api_key")}
-                            <input
-                                class="provider-api-key"
-                                type="password"
-                                placeholder="API Key"
-                                value={provider.api_key}
-                                onchange={(e) =>
-                                    updateConfig(
-                                        `providers.${key}.api_key`,
-                                        e.target.value,
-                                    )}
-                            />
-                        {/if}
+                        <div class="provider-options">
+                            {#if key === "reddit" || (provider && provider.hasOwnProperty("sort"))}
+                                <select
+                                    class="small-select"
+                                    value={provider.sort || "hot"}
+                                    onchange={(e) =>
+                                        updateConfig(
+                                            `providers.${key}.sort`,
+                                            /** @type {HTMLSelectElement} */ (
+                                                e.target
+                                            ).value,
+                                        )}
+                                >
+                                    <option value="new">new</option>
+                                    <option value="hot">hot</option>
+                                    <option value="top">top</option>
+                                    <option value="controversial"
+                                        >controversial</option
+                                    >
+                                    <option value="mix">mix</option>
+                                </select>
+                            {/if}
+                            {#if provider && provider.hasOwnProperty("api_key")}
+                                <input
+                                    class="provider-api-key"
+                                    type="password"
+                                    placeholder="API Key"
+                                    value={provider.api_key}
+                                    onchange={(e) =>
+                                        updateConfig(
+                                            `providers.${key}.api_key`,
+                                            /** @type {HTMLInputElement} */ (
+                                                e.target
+                                            ).value,
+                                        )}
+                                />
+                            {/if}
+                        </div>
                     </div>
                 {/each}
 
                 <h4>Custom Providers</h4>
-                {#each Object.entries(config.generic_providers || {}) as [key, provider]}
+                {#each Object.entries(config?.generic_providers || {}) as [key, provider]}
                     <div class="provider-item">
                         <div class="provider-header">
                             <span class="provider-name"
                                 >{provider.name || key}</span
                             >
-                            <button
-                                class="small-btn danger"
-                                onclick={() => gower.removeProvider(key)}
-                                >×</button
-                            >
+                            <div class="provider-actions">
+                                <button
+                                    class="small-btn danger"
+                                    onclick={() => gower.removeProvider(key)}
+                                    >×</button
+                                >
+                                <label class="switch">
+                                    <input
+                                        type="checkbox"
+                                        checked={provider.enabled}
+                                        onchange={(e) =>
+                                            updateConfig(
+                                                `generic_providers.${key}.enabled`,
+                                                /** @type {HTMLInputElement} */ (
+                                                    e.target
+                                                ).checked,
+                                            )}
+                                    />
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
                         </div>
-                        <div class="provider-header">
-                            <span class="subtext">{provider.search_url}</span>
-                            <input
-                                type="checkbox"
-                                checked={provider.enabled}
-                                onchange={(e) =>
-                                    updateConfig(
-                                        `generic_providers.${key}.enabled`,
-                                        e.target.checked,
-                                    )}
-                            />
+                        <div class="provider-options">
+                            <span class="subtext url-text"
+                                >{provider.search_url}</span
+                            >
+                            {#if (provider && provider.hasOwnProperty("sort")) || (provider && provider.search_url && provider.search_url.includes("reddit.com"))}
+                                <select
+                                    class="small-select"
+                                    value={provider.sort || "hot"}
+                                    onchange={(e) =>
+                                        updateConfig(
+                                            `generic_providers.${key}.sort`,
+                                            /** @type {HTMLSelectElement} */ (
+                                                e.target
+                                            ).value,
+                                        )}
+                                >
+                                    <option value="new">new</option>
+                                    <option value="hot">hot</option>
+                                    <option value="top">top</option>
+                                    <option value="controversial"
+                                        >controversial</option
+                                    >
+                                    <option value="mix">mix</option>
+                                </select>
+                            {/if}
                         </div>
                     </div>
                 {/each}
@@ -252,22 +433,55 @@
                     <h4>Añadir Custom</h4>
                     <input
                         type="text"
-                        placeholder="Nombre"
+                        placeholder="Nombre (ej: wallpapers)"
                         bind:value={newProvider.name}
                     />
-                    <input
-                        type="text"
-                        placeholder="URL / r/subreddit"
-                        bind:value={newProvider.url}
-                    />
+                    <div class="input-with-label">
+                        <input
+                            type="text"
+                            placeholder="URL o r/subreddit"
+                            bind:value={newProvider.url}
+                        />
+                        {#if newProvider.url
+                            .trim()
+                            .toLowerCase()
+                            .startsWith("r/")}
+                            <span class="badge">Reddit Detectado</span>
+                        {/if}
+                    </div>
+
+                    {#if newProvider.url.trim().toLowerCase().startsWith("r/")}
+                        <select bind:value={newProvider.key}>
+                            <option value="hot">hot</option>
+                            <option value="new">new</option>
+                            <option value="top">top</option>
+                            <option value="controversial">controversial</option>
+                            <option value="mix">mix</option>
+                        </select>
+                    {/if}
+
                     <button
                         onclick={() => {
-                            gower.addProvider(
-                                newProvider.name,
-                                newProvider.url,
-                                "",
-                            );
-                            newProvider = { name: "", url: "" };
+                            if (
+                                newProvider.url
+                                    .trim()
+                                    .toLowerCase()
+                                    .startsWith("r/")
+                            ) {
+                                let sub = newProvider.url.trim().substring(2);
+                                gower.addRedditProvider(
+                                    sub,
+                                    newProvider.key || "hot",
+                                );
+                            } else {
+                                gower.addProvider(
+                                    newProvider.name,
+                                    newProvider.url,
+                                    "",
+                                );
+                            }
+                            newProvider = { name: "", url: "", key: "" };
+                            setTimeout(() => dispatch("refresh"), 500);
                         }}>Añadir</button
                     >
                 </div>
@@ -317,12 +531,81 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        min-height: 32px;
     }
 
     .col {
         display: flex;
         flex-direction: column;
         gap: 4px;
+    }
+
+    .status-control {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .status-text {
+        font-size: 0.75rem;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--on-surface-variant);
+        opacity: 0.5;
+    }
+    .status-text.active {
+        background: rgba(187, 134, 252, 0.1);
+        color: var(--primary);
+        opacity: 1;
+    }
+
+    /* Switch Style */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 36px;
+        height: 20px;
+        flex-shrink: 0;
+    }
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--on-surface-variant);
+        opacity: 0.3;
+        transition: 0.4s;
+        border-radius: 20px;
+    }
+    input:checked + .slider {
+        background-color: var(--primary);
+        opacity: 1;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+    }
+    input:checked + .slider {
+        background-color: var(--primary);
+    }
+    input:checked + .slider:before {
+        transform: translateX(16px);
     }
 
     .input-group {
@@ -336,19 +619,6 @@
     .provider-api-key {
         width: 100%;
         margin-top: var(--spacing-s);
-    }
-
-    .toggle-btn {
-        background: var(--surface-container-highest);
-        color: var(--on-surface-variant);
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: bold;
-    }
-    .toggle-btn.active {
-        background: var(--primary);
-        color: var(--on-primary);
     }
 
     .subtext {
@@ -365,13 +635,22 @@
     .header-row {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-bottom: 10px;
+        justify-content: center;
+        position: relative;
+        margin-bottom: var(--spacing-m);
+        min-height: 40px;
     }
     .back-btn {
+        position: absolute;
+        left: 0;
         background: transparent;
         color: var(--primary);
         font-weight: bold;
+    }
+    .title-centered {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--primary);
     }
 
     .provider-item {
@@ -384,9 +663,32 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        margin-bottom: 4px;
     }
-    .provider-name {
-        font-weight: bold;
+    .provider-options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 4px;
+    }
+    .provider-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .small-select {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        border-radius: 4px;
+        font-size: 0.8rem;
+        padding: 2px 4px;
+        color: var(--on-surface);
+    }
+    .url-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 200px;
     }
 
     .add-provider {
@@ -398,8 +700,32 @@
         padding: 10px;
         border-radius: 8px;
     }
+    .input-with-label {
+        position: relative;
+        width: 100%;
+    }
+    .badge {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--primary);
+        color: black;
+        font-size: 0.65rem;
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 4px;
+        pointer-events: none;
+    }
+
     .add-provider input {
         width: 100%;
+    }
+    .add-provider select {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 6px;
+        border-radius: 4px;
     }
     .add-provider button {
         background: var(--primary);

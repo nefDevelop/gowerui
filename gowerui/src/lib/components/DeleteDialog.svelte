@@ -54,7 +54,7 @@
             {#if item?.thumbnail}
                 <div class="preview">
                     <img
-                        src={convertFileSrc(item.thumbnail)}
+                        src={item.thumbnail}
                         alt="Wallpaper to delete"
                         class="preview-img"
                     />

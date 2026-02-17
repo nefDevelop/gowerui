@@ -1,73 +1,186 @@
 <script>
     import { gower } from "$lib/api";
     import WallpaperGrid from "./WallpaperGrid.svelte";
+    import { createEventDispatcher } from "svelte";
 
-    /** @type {{cache_path: string, config_path: string, user_home: string} | null} */
-    export let appContext = null;
-    /** @type {any[]} */
-    export let favoritesList = []; // To check if item is fav
+    const dispatch = createEventDispatcher();
 
-    let searchQuery = "";
-    /** @type {any[]} */
-    let searchResults = [];
-    let loading = false;
-    let selectedProvider = "wallhaven";
+    let {
+        favoritesModel = [],
+        loading = $bindable(false),
+        searchResults = $bindable([]),
+        searchQuery = $bindable(""),
+        searchPage = $bindable(1),
+        selectedProvider = $bindable("wallhaven"),
+        lastSearchTime = $bindable(0),
+        config = null,
+        status = null,
+    } = $props();
 
-    const providers = ["wallhaven", "reddit"]; // Could come from config
+    // Dynamically get enabled providers from status
+    const providers = $derived(() => {
+        const list = ["wallhaven", "reddit", "bing", "unsplash", "nasa"];
+        if (!status?.providers) return ["wallhaven", "reddit"];
 
-    async function handleSearch() {
-        if (!searchQuery) return;
-        loading = true;
-        searchResults = [];
-        try {
-            const result = await gower.search(searchQuery, selectedProvider);
-            if (result && appContext) {
-                searchResults = result.map((/** @type {any} */ item) => {
-                    return item;
-                });
+        return list.filter((p) => {
+            // Check if provider is enabled in status
+            if (status.providers[p] !== undefined) {
+                return status.providers[p] === true;
             }
+            // If not mentioned in status but is a known default, show it
+            return p === "wallhaven" || p === "reddit";
+        });
+    });
+
+    async function handleSearch(resetPage = true) {
+        if (!searchQuery || loading) return;
+        if (resetPage) searchPage = 1;
+
+        loading = true;
+        try {
+            const result = await gower.search(
+                searchQuery,
+                selectedProvider,
+                searchPage,
+            );
+            console.log(
+                `[SEARCH] Provider: ${$state.snapshot(selectedProvider)}, Page: ${$state.snapshot(searchPage)}, Results:`,
+                result,
+            );
+
+            // Handle different API result structures
+            let items = [];
+            if (result && Array.isArray(result)) {
+                items = result;
+            } else if (result && typeof result === "object") {
+                // Common Gower pattern: { "results": [], "page": 1, ... }
+                items =
+                    result.results || result.items || result.wallpapers || [];
+
+                // If we still don't have items, find the first array property
+                if (items.length === 0) {
+                    const firstArray = Object.values(result).find((val) =>
+                        Array.isArray(val),
+                    );
+                    if (firstArray) items = firstArray;
+                }
+            }
+
+            if (items.length === 0 && result) {
+                console.warn(
+                    `[SEARCH] Formato inesperado o sin resultados:`,
+                    result,
+                );
+            }
+
+            // Ensure items have provider metadata
+            const mappedItems = items.map((/** @type {any} */ item) => ({
+                ...item,
+                provider: item.provider || selectedProvider,
+            }));
+
+            if (mappedItems.length > 0 || resetPage) {
+                searchResults = mappedItems;
+                console.log(
+                    `[GRID] Elementos en búsqueda: ${searchResults.length}`,
+                );
+            }
+
+            lastSearchTime = Date.now();
         } catch (e) {
-            console.error(e);
+            console.error("[SEARCH] Error:", e);
         } finally {
             loading = false;
+        }
+    }
+
+    /**
+     * @param {WheelEvent} e
+     */
+    function handleWheel(e) {
+        if (loading) return;
+        // Basic debounce: only trigger if scroll is significant
+        if (Math.abs(e.deltaY) < 50) return;
+
+        e.preventDefault();
+
+        if (e.deltaY > 0) {
+            searchPage++;
+            handleSearch(false);
+        } else if (e.deltaY < 0 && searchPage > 1) {
+            searchPage--;
+            handleSearch(false);
         }
     }
 </script>
 
 <div class="search-panel">
-    <div class="search-bar glass-card">
-        <select bind:value={selectedProvider}>
-            {#each providers as p}
+    <div class="search-bar">
+        <select
+            bind:value={selectedProvider}
+            onchange={() => handleSearch(true)}
+        >
+            {#each providers() as p}
                 <option value={p}>{p}</option>
             {/each}
         </select>
         <input
             type="text"
-            placeholder="Buscar wallpapers..."
+            placeholder="Buscar..."
             bind:value={searchQuery}
-            onkeydown={(e) => e.key === "Enter" && handleSearch()}
+            onkeydown={(e) => e.key === "Enter" && handleSearch(true)}
         />
-        <button class="btn-primary" onclick={handleSearch}>Ir</button>
+        <button class="btn-primary" onclick={() => handleSearch(true)}
+            >Buscar</button
+        >
     </div>
 
-    <!-- Apps/Plugins Grid (Placeholder until logic confirmed) -->
-    <!-- QML had a grid of apps/plugins. For now we focus on search results -->
-
-    <div class="results-area">
+    <div class="results-area" onwheel={handleWheel}>
         {#if loading || searchResults.length > 0}
-            <WallpaperGrid
-                items={searchResults}
-                {loading}
-                type="search"
-                {favoritesList}
-                on:set={(e) => gower.setWallpaper(e.detail.id)}
-            />
+            <div class="grid-container premium-scroll">
+                <WallpaperGrid
+                    items={searchResults}
+                    {loading}
+                    type="search"
+                    favoritesList={favoritesModel}
+                    on:preview
+                    on:contextmenu
+                    on:block
+                    on:favorite
+                    on:download
+                />
+            </div>
+
+            {#if searchResults.length > 0 && !loading}
+                <div class="search-footer">
+                    <div class="page-nav glass-card">
+                        <button
+                            class="icon-btn"
+                            disabled={searchPage <= 1}
+                            onclick={() => {
+                                searchPage--;
+                                handleSearch(false);
+                            }}
+                        >
+                            <span class="material-icons">chevron_left</span>
+                        </button>
+                        <span class="page-num">Página {searchPage}</span>
+                        <button
+                            class="icon-btn"
+                            onclick={() => {
+                                searchPage++;
+                                handleSearch(false);
+                            }}
+                        >
+                            <span class="material-icons">chevron_right</span>
+                        </button>
+                    </div>
+                </div>
+            {/if}
         {:else if !loading && searchQuery}
             <div class="empty">No se encontraron resultados.</div>
         {:else}
-            <div class="empty hint">
-                Selecciona un proveedor y busca algo increíble.
-            </div>
+            <div class="empty hint">Busca algo increíble.</div>
         {/if}
     </div>
 </div>
@@ -85,20 +198,74 @@
         display: flex;
         gap: var(--spacing-s);
         align-items: center;
-        /* Remove card style from container to let inputs stand on their own or keep it? 
-           User wants spacing. Inputs have their own borders now.
-           Let's remove the background/border from this container to avoid double-boxing.
-        */
         background: transparent;
         border: none;
         backdrop-filter: none;
         padding: 0;
+        margin-bottom: var(--spacing-xs);
     }
 
-    /* Reset specific styles to inherit global premium inputs */
+    .results-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .grid-container {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .search-footer {
+        flex-shrink: 0;
+        display: flex;
+        justify-content: center;
+        padding: var(--spacing-s) 0;
+        background: var(--background);
+        border-top: 1px solid var(--outline);
+    }
+
+    .page-nav {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-m);
+        padding: var(--spacing-xs) var(--spacing-m);
+        border-radius: var(--radius-l);
+        background: var(--surface);
+    }
+
+    .page-num {
+        font-weight: bold;
+        min-width: 80px;
+        text-align: center;
+        font-size: 0.85rem;
+        color: var(--primary);
+    }
+
+    .icon-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--on-surface);
+        opacity: 0.8;
+    }
+    .icon-btn:hover:not(:disabled) {
+        opacity: 1;
+        color: var(--primary);
+    }
+    .icon-btn:disabled {
+        opacity: 0.2;
+        cursor: not-allowed;
+    }
+    .icon-btn .material-icons {
+        font-size: 20px;
+    }
 
     option {
-        background: var(--surface-container);
+        background: var(--surface);
         color: var(--on-surface);
     }
 
@@ -106,17 +273,8 @@
         flex: 1;
     }
 
-    /* Remove specific local styles to use global */
-
-    .results-area {
-        flex: 1;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-    }
-
     .empty {
-        margin-top: 40px;
+        margin-top: var(--spacing-l);
         text-align: center;
         color: var(--on-surface-variant);
         opacity: 0.7;

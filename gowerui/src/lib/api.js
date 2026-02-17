@@ -37,20 +37,24 @@ function extractJson(text) {
  * @param {string[]} args
  * @returns {Promise<any>}
  */
-export async function runGower(args) {
-    console.log(`[GOWER] Sending command: gower ${args.join(' ')}`);
+export async function runGower(args, silent = false) {
+    if (!silent) console.log(`[GOWER] Sending command: gower ${args.join(' ')}`);
     const startTime = Date.now();
     try {
         const result = await invoke('run_gower_command', { args });
         const duration = Date.now() - startTime;
-        console.log(`[GOWER] Command raw output (len: ${result.length}, ${duration}ms)`);
-        const parsed = extractJson(result);
-        if (parsed) {
-            console.log(`[GOWER] Successfully parsed JSON result`);
+        if (!silent) {
+            console.log(`[GOWER] Command raw output (len: ${result.length}, ${duration}ms)`);
+            const parsed = extractJson(result);
+            if (parsed) {
+                console.log(`[GOWER] Successfully parsed JSON result`);
+            } else {
+                console.log(`[GOWER] Result was not JSON or failed to parse, returning raw string`);
+            }
+            return parsed || result;
         } else {
-            console.log(`[GOWER] Result was not JSON or failed to parse, returning raw string`);
+            return extractJson(result) || result;
         }
-        return parsed || result;
     } catch (e) {
         const duration = Date.now() - startTime;
         console.error(`[GOWER] Command failed (${duration}ms):`, e);
@@ -63,6 +67,13 @@ export async function runGower(args) {
  */
 export async function getAppContext() {
     return await invoke('get_app_context');
+}
+
+/**
+ * Checks if the system has a battery.
+ */
+export async function checkBattery() {
+    return await invoke('check_battery');
 }
 
 /**
@@ -119,11 +130,11 @@ export const gower = {
         return runGower(args);
     },
     /**
-     * @param {string} id
+     * @param {string} idOrUrl
      * @param {string} [monitor]
      */
-    setWallpaper: (id, monitor = '') => {
-        const args = ['set', id];
+    setWallpaper: (idOrUrl, monitor = '') => {
+        const args = ['set', idOrUrl];
         if (monitor) args.push('--target-monitor', monitor);
         return runGower(args);
     },
@@ -147,9 +158,14 @@ export const gower = {
     /**
      * @param {string} text
      * @param {string} provider
+     * @param {number} [page]
      */
-    search: (text, provider) => runGower(['explore', text, '--provider', provider.toLowerCase(), '--json']),
-    getConfig: () => runGower(['config', 'show', '--json']),
+    search: (text, provider, page = 1) => {
+        const args = ['explore', text, '--provider', provider.toLowerCase(), '--page', String(page), '--json'];
+        return runGower(args);
+    },
+    getDaemonStatus: () => runGower(['daemon', 'status', '--json'], true),
+    getConfig: () => runGower(['config', 'show', '--json'], true),
     /**
      * @param {string} key
      * @param {any} value
@@ -159,7 +175,21 @@ export const gower = {
         return runGower(['config', 'set', `${key}=${value}`]);
     },
     /** @param {boolean} enable */
-    toggleDaemon: (enable) => runGower(['daemon', enable ? 'start' : 'stop']),
+    toggleDaemon: async (enable) => {
+        const cmd = ['daemon', enable ? 'start' : 'stop'];
+        console.group(`[DAEMON] ACCIÓN: ${enable ? 'INICIAR' : 'DETENER'}`);
+        console.log(`Comando enviado: gower ${cmd.join(' ')}`);
+        try {
+            const response = await runGower(cmd);
+            console.log(`Respuesta recibida:`, response);
+            console.groupEnd();
+            return response;
+        } catch (e) {
+            console.error(`Error en daemon:`, e);
+            console.groupEnd();
+            throw e;
+        }
+    },
 
     /** 
      * @param {string} name 
@@ -185,9 +215,9 @@ export const gower = {
         return runGower(['config', 'provider', 'add', name, url]);
     },
     getCurrentWallpapers: () => runGower(['status', '--wallpapers', '--json']),
-    getMonitors: () => runGower(['status', '--monitors', '--json']),
-    getFeedColors: () => runGower(['feed', 'get', 'colors', '--json']),
-    getFavoritesColors: () => runGower(['favorites', 'get', 'colors', '--json']),
+    getMonitors: () => runGower(['status', '--monitors', '--json'], true),
+    getFeedColors: () => runGower(['feed', 'get', 'colors', '--json'], true),
+    getFavoritesColors: () => runGower(['favorites', 'get', 'colors', '--json'], true),
     /** @param {string} id */
     deleteWallpaper: (id) => runGower(['wallpaper', id, '--delete', '--file', '--force']),
     undoWallpaper: () => runGower(['set', 'undo']),

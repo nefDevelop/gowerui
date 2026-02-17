@@ -34,7 +34,7 @@
                             onclick={() => openFolder(item)}
                             title="Abrir carpeta"
                         >
-                            <span class="material-icons">folder</span>
+                            <span class="material-icons">folder_open</span>
                         </button>
                         <button
                             class="danger"
