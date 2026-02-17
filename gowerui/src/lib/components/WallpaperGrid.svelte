@@ -67,10 +67,8 @@
             : "";
         const cleanPath = path ? path.replace(/\/$/, "") : "";
 
-        return (
-            item.source === "local" ||
-            (cleanCollection && cleanPath.startsWith(cleanCollection))
-        );
+        return (cleanCollection && cleanPath.startsWith(cleanCollection));
+    }
     }
 </script>
 
