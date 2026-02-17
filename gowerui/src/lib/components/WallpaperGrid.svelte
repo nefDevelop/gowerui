@@ -10,6 +10,8 @@
     export let type = "home"; // 'home' | 'favorites' | 'search' | 'current'
     /** @type {any[]} */
     export let favoritesList = []; // List of favorite items to check status
+    /** @type {string} */
+    export let collectionPath = "";
 
     const dispatch = createEventDispatcher();
 
@@ -28,12 +30,47 @@
 
     /**
      * @param {string} id
+     * @returns {string}
      */
+    function normalizeId(id) {
+        if (!id) return "";
+        // Clean ID: Remove local_ prefix and any provider prefixes/suffixes
+        // wh_123 -> 123, local_wh_123 -> 123
+        return String(id)
+            .replace(/^local_/, "")
+            .replace(/^(wh_|wallhaven_|reddit_|bing_|unsplash_|nasa_)/, "")
+            .split(/[?#.]/)[0]; // Remove extensions or URLs params
+    }
+
     /**
      * @param {string} id
      */
     function isFavorite(id) {
-        return favoritesList.some((f) => f.id === id);
+        const nid = normalizeId(id);
+        return favoritesList.some((f) => normalizeId(f.id) === nid);
+    }
+
+    /**
+     * @param {any} item
+     */
+    function isDownloaded(item) {
+        if (!item) return false;
+        const url = item.url || "";
+
+        // User rule: if it doesn't start with http, it's local/downloaded
+        if (url && !url.startsWith("http")) return true;
+
+        // Fallbacks
+        const path = item.path || "";
+        const cleanCollection = collectionPath
+            ? collectionPath.replace(/\/$/, "")
+            : "";
+        const cleanPath = path ? path.replace(/\/$/, "") : "";
+
+        return (
+            item.source === "local" ||
+            (cleanCollection && cleanPath.startsWith(cleanCollection))
+        );
     }
 </script>
 
@@ -98,16 +135,18 @@
                         </button>
                     {/if}
 
-                    <button
-                        onclick={(e) => {
-                            e.stopPropagation();
-                            dispatch("download", item);
-                        }}
-                        title="Descargar"
-                        class="download-btn"
-                    >
-                        <span class="material-icons">download</span>
-                    </button>
+                    {#if !isDownloaded(item)}
+                        <button
+                            onclick={(e) => {
+                                e.stopPropagation();
+                                dispatch("download", item);
+                            }}
+                            title="Descargar"
+                            class="download-btn"
+                        >
+                            <span class="material-icons">download</span>
+                        </button>
+                    {/if}
 
                     {#if type === "favorites"}
                         <button
@@ -127,6 +166,12 @@
             {#if isFavorite(item.id) && type !== "favorites"}
                 <div class="fav-badge">
                     <span class="material-icons">favorite</span>
+                </div>
+            {/if}
+
+            {#if isDownloaded(item)}
+                <div class="download-badge">
+                    <span class="material-icons">save</span>
                 </div>
             {/if}
         </div>
@@ -244,6 +289,26 @@
         color: var(--error);
         filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
         pointer-events: none;
+    }
+
+    .download-badge {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        color: #4caf50;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+        pointer-events: none;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .download-badge .material-icons {
+        font-size: 14px;
     }
 
     .skeleton {

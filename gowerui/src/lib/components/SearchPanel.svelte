@@ -43,10 +43,6 @@
                 selectedProvider,
                 searchPage,
             );
-            console.log(
-                `[SEARCH] Provider: ${$state.snapshot(selectedProvider)}, Page: ${$state.snapshot(searchPage)}, Results:`,
-                result,
-            );
 
             // Handle different API result structures
             let items = [];
@@ -66,13 +62,6 @@
                 }
             }
 
-            if (items.length === 0 && result) {
-                console.warn(
-                    `[SEARCH] Formato inesperado o sin resultados:`,
-                    result,
-                );
-            }
-
             // Ensure items have provider metadata
             const mappedItems = items.map((/** @type {any} */ item) => ({
                 ...item,
@@ -81,9 +70,6 @@
 
             if (mappedItems.length > 0 || resetPage) {
                 searchResults = mappedItems;
-                console.log(
-                    `[GRID] Elementos en búsqueda: ${searchResults.length}`,
-                );
             }
 
             lastSearchTime = Date.now();
@@ -143,6 +129,7 @@
                     {loading}
                     type="search"
                     favoritesList={favoritesModel}
+                    collectionPath={config?.paths?.wallpapers}
                     on:preview
                     on:contextmenu
                     on:block

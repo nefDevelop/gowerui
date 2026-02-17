@@ -188,21 +188,18 @@
      * @param {string} [monitorId]
      */
     async function setWallpaper(item, monitorId = "") {
-        if (!item) {
-            console.error("setWallpaper: missing item", item);
-            return;
-        }
+        if (!item) return;
 
-        // We use the ID but remove the "local_" prefix if it exists,
-        // as Gower expects the base ID.
-        const idToSend = item.id.replace("local_", "");
+        // If it's a local file, we should use the full path to avoid
+        // ID resolution issues in the CLI
+        const isLocal =
+            item.path &&
+            config?.paths?.wallpapers &&
+            item.path.startsWith(config.paths.wallpapers);
+        const target = isLocal ? item.path : item.id.replace("local_", "");
 
-        const snapItem = $state.snapshot(item);
-        console.log(
-            `[UI] Setting wallpaper: Source=${snapItem.source}, ID=${idToSend}, Monitor=${monitorId}`,
-        );
         try {
-            await gower.setWallpaper(idToSend, monitorId);
+            await gower.setWallpaper(target, monitorId);
             await refreshCurrentWallpapers();
             contextMenu.open = false;
         } catch (e) {
@@ -216,7 +213,6 @@
     async function handleBlock(item) {
         if (!item) return;
         const snap = $state.snapshot(item);
-        console.group(`[ACTION] Blacklist: ${snap.id}`);
         try {
             await gower.blacklist(snap.id);
             // Visual feedback: remove from models
@@ -226,12 +222,16 @@
             }
             favoritesModel = favoritesModel.filter((i) => i.id !== snap.id);
             notify("Imagen añadida a la lista negra", "success");
-            console.log("Success: Item removed from view");
+
+            // Trigger reload to fill gaps and sync state
+            if (currentTab === "home") {
+                loadHome();
+            } else if (currentTab === "favorites") {
+                loadFavorites();
+            }
         } catch (e) {
             notify("Error al añadir a la lista negra", "error");
             console.error("Failed to blacklist item:", e);
-        } finally {
-            console.groupEnd();
         }
     }
 
@@ -241,17 +241,62 @@
     async function handleDownload(item) {
         if (!item) return;
         const snap = $state.snapshot(item);
-        console.group(`[ACTION] Download: ${snap.id}`);
         try {
             await gower.download(snap.id);
             notify("Descarga iniciada", "success");
-            console.log("Success: Download command sent to backend");
+            // After starting download, we should update local state if possible
+            // but download is async in backend, so maybe we just wait for next poll
         } catch (e) {
             notify("Error al iniciar descarga", "error");
             console.error("Download failed:", e);
-        } finally {
-            console.groupEnd();
         }
+    }
+
+    /**
+     * @param {string} id
+     * @returns {string}
+     */
+    function normalizeId(id) {
+        if (!id) return "";
+        // ID is now stable, but we still strip provider prefixes for consistent comparison
+        return String(id)
+            .replace(
+                /^(wh_|wallhaven_|reddit_|bing_|unsplash_|nasa_|local_)/,
+                "",
+            )
+            .split(/[?#.]/)[0];
+    }
+
+    /**
+     * @param {any} item
+     */
+    function isDownloaded(item) {
+        if (!item) return false;
+        const url = item.url || "";
+
+        // User rule: if it doesn't start with http, it's local
+        if (url && !url.startsWith("http")) return true;
+
+        const path = item.path || "";
+        const collectionPath = config?.paths?.wallpapers;
+
+        const cleanCollection = collectionPath
+            ? collectionPath.replace(/\/$/, "")
+            : "";
+        const cleanPath = path ? path.replace(/\/$/, "") : "";
+
+        return (
+            item.source === "local" ||
+            (cleanCollection && cleanPath.startsWith(cleanCollection))
+        );
+    }
+
+    /**
+     * @param {string} id
+     */
+    function isFavorite(id) {
+        const nid = normalizeId(id);
+        return favoritesModel.some((f) => normalizeId(f.id) === nid);
     }
 
     /**
@@ -291,15 +336,33 @@
      * @param {any} item
      */
     async function openInSystem(item) {
-        if (!item || !item.url) return;
+        if (!item) return;
+        const pathOrUrl = item.path || item.url;
+        if (!pathOrUrl) return;
+
+        const collectionPath = config?.paths?.wallpapers;
+
         try {
-            if (!item.url.startsWith("http")) {
-                await gower.openPath(item.url);
+            if (
+                !pathOrUrl.startsWith("http") &&
+                !pathOrUrl.startsWith("https")
+            ) {
+                // Check if it belongs to the collection
+                if (collectionPath && pathOrUrl.startsWith(collectionPath)) {
+                    await gower.openPath(pathOrUrl);
+                    notify("Abriendo en colección...", "info");
+                } else {
+                    await gower.openPath(pathOrUrl);
+                    notify("Abriendo carpeta local...", "info");
+                }
             } else {
-                await gower.openPath(item.url);
+                // Remote URL
+                await gower.openPath(pathOrUrl);
+                notify("Abriendo en el navegador...", "info");
             }
             contextMenu.open = false;
         } catch (e) {
+            notify("Error al intentar abrir", "error");
             console.error(e);
         }
     }
@@ -617,6 +680,7 @@
                         items={feedModel}
                         {loading}
                         favoritesList={favoritesModel}
+                        collectionPath={config?.paths?.wallpapers}
                         on:preview={(e) => handlePreview(e.detail)}
                         on:contextmenu={(e) =>
                             handleContextMenu(
@@ -686,6 +750,7 @@
                     loading={loading && favoritesModel.length === 0}
                     type="favorites"
                     favoritesList={favoritesModel}
+                    collectionPath={config?.paths?.wallpapers}
                     on:preview={(e) => handlePreview(e.detail)}
                     on:contextmenu={(e) =>
                         handleContextMenu(
@@ -801,25 +866,22 @@
                         >
                             <span
                                 class="material-icons"
-                                class:active={favoritesModel.some(
-                                    (f) => f.id === previewItem.id,
-                                )}
+                                class:active={isFavorite(previewItem.id)}
                             >
-                                {favoritesModel.some(
-                                    (f) => f.id === previewItem.id,
-                                )
+                                {isFavorite(previewItem.id)
                                     ? "favorite"
                                     : "favorite_border"}
                             </span>
                         </button>
-
-                        <button
-                            onclick={() => gower.download(previewItem.id)}
-                            title="Descargar"
-                            class="action-btn download"
-                        >
-                            <span class="material-icons">download</span>
-                        </button>
+                        {#if !isDownloaded(previewItem)}
+                            <button
+                                onclick={() => handleDownload(previewItem)}
+                                title="Descargar"
+                                class="action-btn"
+                            >
+                                <span class="material-icons">download</span>
+                            </button>
+                        {/if}
 
                         {#if !previewItem.provider || previewItem.provider.toLowerCase() === "local"}
                             <button

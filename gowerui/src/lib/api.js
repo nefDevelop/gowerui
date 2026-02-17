@@ -38,19 +38,12 @@ function extractJson(text) {
  * @returns {Promise<any>}
  */
 export async function runGower(args, silent = false) {
-    if (!silent) console.log(`[GOWER] Sending command: gower ${args.join(' ')}`);
     const startTime = Date.now();
     try {
         const result = await invoke('run_gower_command', { args });
         const duration = Date.now() - startTime;
         if (!silent) {
-            console.log(`[GOWER] Command raw output (len: ${result.length}, ${duration}ms)`);
             const parsed = extractJson(result);
-            if (parsed) {
-                console.log(`[GOWER] Successfully parsed JSON result`);
-            } else {
-                console.log(`[GOWER] Result was not JSON or failed to parse, returning raw string`);
-            }
             return parsed || result;
         } else {
             return extractJson(result) || result;
@@ -154,7 +147,7 @@ export const gower = {
     /** @param {string} id */
     blacklist: (id) => runGower(['blacklist', 'add', id]),
     /** @param {string} id */
-    download: (id) => runGower(['download', id]),
+    download: (id) => runGower(['download', id, '--to-collection']),
     /**
      * @param {string} text
      * @param {string} provider
@@ -177,16 +170,11 @@ export const gower = {
     /** @param {boolean} enable */
     toggleDaemon: async (enable) => {
         const cmd = ['daemon', enable ? 'start' : 'stop'];
-        console.group(`[DAEMON] ACCIÓN: ${enable ? 'INICIAR' : 'DETENER'}`);
-        console.log(`Comando enviado: gower ${cmd.join(' ')}`);
         try {
             const response = await runGower(cmd);
-            console.log(`Respuesta recibida:`, response);
-            console.groupEnd();
             return response;
         } catch (e) {
             console.error(`Error en daemon:`, e);
-            console.groupEnd();
             throw e;
         }
     },
