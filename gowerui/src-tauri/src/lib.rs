@@ -118,6 +118,7 @@ pub fn run() {
                                 let _ = window.unminimize();
                                 let _ = window.show();
                                 let _ = window.set_focus();
+                                let _ = window.emit("window-shown", "shown");
                             }
                         }
                         _ => {}
@@ -133,7 +134,7 @@ pub fn run() {
                             let _ = window.unminimize();
                             let _ = window.show();
                             let _ = window.set_focus();
-                            let _ = window.emit("tray-click", "clicked");
+                            let _ = window.emit("window-shown", "shown");
                         }
                     }
                 })

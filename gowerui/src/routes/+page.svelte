@@ -658,6 +658,15 @@
                 <span class="label">{tab.label}</span>
             </button>
         {/each}
+        <div class="nav-spacer"></div>
+        <button
+            class="theme-toggle"
+            onclick={() => /** @type {any} */ (window).__toggleTheme()}
+            title="Cambiar tema"
+        >
+            <span class="material-icons theme-icon-light">light_mode</span>
+            <span class="material-icons theme-icon-dark">dark_mode</span>
+        </button>
     </nav>
 
     <!-- Content -->

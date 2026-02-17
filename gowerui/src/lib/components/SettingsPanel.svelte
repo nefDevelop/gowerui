@@ -29,15 +29,27 @@
         gower.setConfig(key, value);
     }
 
+    let isDaemonTransitioning = $state(false);
+    let optimisticDaemonState = $state(false);
+
     /** @param {any} e */
     async function toggleDaemon(e) {
         const newState = e.target.checked;
-        await gower.toggleDaemon(newState);
+        isDaemonTransitioning = true;
+        optimisticDaemonState = newState;
 
-        // Wait a small moment for process to settle then refresh UI
-        setTimeout(() => {
+        try {
+            await gower.toggleDaemon(newState);
+            // Wait a small moment for process to settle
+            setTimeout(() => {
+                dispatch("refresh");
+                isDaemonTransitioning = false;
+            }, 1000);
+        } catch (err) {
+            console.error("Daemon toggle failed:", err);
+            isDaemonTransitioning = false;
             dispatch("refresh");
-        }, 500);
+        }
     }
 
     import { open } from "@tauri-apps/plugin-dialog";
@@ -67,22 +79,37 @@
                 <div class="status-control">
                     <span
                         class="status-text"
-                        class:active={status?.daemon_running ||
-                            status?.daemon?.running ||
-                            status?.running}
+                        class:active={isDaemonTransitioning
+                            ? optimisticDaemonState
+                            : status?.daemon_running ||
+                              status?.daemon?.running ||
+                              status?.running}
+                        class:transitioning={isDaemonTransitioning}
                     >
-                        {status?.daemon_running ||
-                        status?.daemon?.running ||
-                        status?.running
-                            ? "ACTIVO"
-                            : "INACTIVO"}
+                        {#if isDaemonTransitioning}
+                            {optimisticDaemonState
+                                ? "INICIANDO..."
+                                : "DETENIENDO..."}
+                        {:else}
+                            {status?.daemon_running ||
+                            status?.daemon?.running ||
+                            status?.running
+                                ? "ACTIVO"
+                                : "INACTIVO"}
+                        {/if}
                     </span>
-                    <label class="switch">
+                    <label
+                        class="switch"
+                        class:disabled={isDaemonTransitioning}
+                    >
                         <input
                             type="checkbox"
-                            checked={status?.daemon_running ||
-                                status?.daemon?.running ||
-                                status?.running}
+                            checked={isDaemonTransitioning
+                                ? optimisticDaemonState
+                                : status?.daemon_running ||
+                                  status?.daemon?.running ||
+                                  status?.running}
+                            disabled={isDaemonTransitioning}
                             onchange={(e) => {
                                 const target = /** @type {HTMLInputElement} */ (
                                     e.target
@@ -560,6 +587,22 @@
         color: var(--primary);
         opacity: 1;
     }
+    .status-text.transitioning {
+        animation: pulse 1.5s infinite;
+        opacity: 0.8;
+    }
+
+    @keyframes pulse {
+        0% {
+            opacity: 0.4;
+        }
+        50% {
+            opacity: 0.8;
+        }
+        100% {
+            opacity: 0.4;
+        }
+    }
 
     /* Switch Style */
     .switch {
@@ -568,6 +611,13 @@
         width: 36px;
         height: 20px;
         flex-shrink: 0;
+    }
+    .switch.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .switch.disabled .slider {
+        cursor: not-allowed;
     }
     .switch input {
         opacity: 0;

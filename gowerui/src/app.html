@@ -1,14 +1,61 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tauri + SvelteKit App</title>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    %sveltekit.head%
-  </head>
-  <body data-sveltekit-preload-data="hover">
-    <div style="display: contents">%sveltekit.body%</div>
-  </body>
+
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tauri + SvelteKit App</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script>
+    (function () {
+      console.log("[Theme] Initialized. Environment: Linux/Niri");
+
+      function applyTheme() {
+        const savedTheme = localStorage.getItem('gower-theme');
+        const systemLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+
+        let theme = 'dark'; // Default
+
+        if (savedTheme) {
+          theme = savedTheme;
+          console.log("[Theme] Using saved preference:", theme);
+        } else {
+          // On Linux/Niri, if we haven't saved a preference, we default to DARK
+          // because light detection is often a false positive.
+          console.log("[Theme] No saved preference. Defaulting to DARK (ignoring system " + (systemLight ? 'Light' : 'Dark') + ")");
+          theme = 'dark';
+        }
+
+        document.documentElement.classList.toggle('light-theme', theme === 'light');
+        document.documentElement.classList.toggle('dark-theme', theme === 'dark');
+
+        console.log("[Theme] Applied:", theme, "(System light=" + systemLight + ")");
+      }
+
+      // Initial apply
+      applyTheme();
+
+      // Listen for window-shown event from Rust (Tray click)
+      document.addEventListener('window-shown', () => {
+        console.log("[Theme] App shown from tray, refreshing logic...");
+        applyTheme();
+      });
+
+      // Export for UI toggle
+      window.__toggleTheme = function () {
+        const isCurrentLight = document.documentElement.classList.contains('light-theme');
+        const newTheme = isCurrentLight ? 'dark' : 'light';
+        localStorage.setItem('gower-theme', newTheme);
+        applyTheme();
+      };
+    })();
+  </script>
+  %sveltekit.head%
+</head>
+
+<body data-sveltekit-preload-data="hover">
+  <div style="display: contents">%sveltekit.body%</div>
+</body>
+
 </html>

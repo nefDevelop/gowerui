@@ -7,7 +7,17 @@
   let { children } = $props();
 
   onMount(() => {
-    // Layout-specific lifecycle
+    // Listen for theme sync event from tray
+    const unlisten = listen("window-shown", () => {
+      console.log(
+        "[Layout] Received window-shown from Rust, notifying app.html...",
+      );
+      document.dispatchEvent(new CustomEvent("window-shown"));
+    });
+
+    return () => {
+      unlisten.then((f) => f());
+    };
   });
 </script>
 
@@ -20,6 +30,6 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: radial-gradient(circle at top left, #1a1a2e, #121212);
+    background: var(--background);
   }
 </style>

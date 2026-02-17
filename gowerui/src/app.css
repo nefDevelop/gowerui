@@ -31,28 +31,48 @@
     --corner-radius: 6px;
 }
 
-@media (prefers-color-scheme: light) {
-    :root {
-        --primary: #6200ee;
-        --on-primary: #ffffff;
-        --background: #f8f9fa;
-        --on-background: #1a1c1e;
-        --surface: #ffffff;
-        --on-surface: #1a1c1e;
-        --surface-hover: rgba(0, 0, 0, 0.04);
-        --surface-container: #eeeeee;
-        --surface-container-high: #e1e2e4;
-        --surface-container-highest: #d1d2d5;
-        --outline: #c4c7c5;
-        --outline-variant: #dee1e6;
-        --error: #ba1a1a;
-        --on-error: #ffffff;
-        --surface-variant-text: #444444;
-        --surface-text: #1a1c1e;
-        --on-surface-variant: rgba(0, 0, 0, 0.6);
-        --glass: rgba(255, 255, 255, 0.7);
-        --glass-border: rgba(0, 0, 0, 0.1);
-    }
+:root.light-theme {
+    --primary: #6200ee;
+    --on-primary: #ffffff;
+    --background: #f8f9fa;
+    --on-background: #1a1c1e;
+    --surface: #ffffff;
+    --on-surface: #1a1c1e;
+    --surface-hover: rgba(0, 0, 0, 0.04);
+    --surface-container: #eeeeee;
+    --surface-container-high: #e1e2e4;
+    --surface-container-highest: #d1d2d5;
+    --outline: #c4c7c5;
+    --outline-variant: #dee1e6;
+    --error: #ba1a1a;
+    --on-error: #ffffff;
+    --surface-variant-text: #444444;
+    --surface-text: #1a1c1e;
+    --on-surface-variant: rgba(0, 0, 0, 0.6);
+    --glass: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(0, 0, 0, 0.1);
+}
+
+:root.dark-theme {
+    --primary: #bb86fc;
+    --on-primary: #000000;
+    --background: #121212;
+    --on-background: #ffffff;
+    --surface: #1e1e1e;
+    --on-surface: #ffffff;
+    --surface-hover: rgba(255, 255, 255, 0.08);
+    --surface-container: #252525;
+    --surface-container-high: #2b2b2b;
+    --surface-container-highest: #333333;
+    --outline: #444444;
+    --outline-variant: #333333;
+    --error: #cf6679;
+    --on-error: #000000;
+    --surface-variant-text: #aaaaaa;
+    --surface-text: #dddddd;
+    --on-surface-variant: rgba(255, 255, 255, 0.6);
+    --glass: rgba(30, 30, 30, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.1);
 }
 
 body {
