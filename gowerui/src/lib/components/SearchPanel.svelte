@@ -1,5 +1,5 @@
 <script>
-    import { gower } from "$lib/api";
+    import { gower, mapThumbnails } from "$lib/api";
     import WallpaperGrid from "./WallpaperGrid.svelte";
     import { createEventDispatcher } from "svelte";
 
@@ -15,21 +15,44 @@
         lastSearchTime = $bindable(0),
         config = null,
         status = null,
+        appContext = null,
     } = $props();
 
-    // Dynamically get enabled providers from status
+    // Dynamically get enabled providers from status and config
     const providers = $derived(() => {
-        const list = ["wallhaven", "reddit", "bing", "unsplash", "nasa"];
-        if (!status?.providers) return ["wallhaven", "reddit"];
+        const defaultList = ["wallhaven", "reddit", "bing", "unsplash", "nasa"];
+        const enabled = new Set();
 
-        return list.filter((p) => {
-            // Check if provider is enabled in status
-            if (status.providers[p] !== undefined) {
-                return status.providers[p] === true;
-            }
-            // If not mentioned in status but is a known default, show it
-            return p === "wallhaven" || p === "reddit";
-        });
+        // 1. Add defaults if enabled in status
+        if (status?.providers) {
+            Object.entries(status.providers).forEach(([p, isActive]) => {
+                if (isActive) enabled.add(p);
+            });
+        }
+
+        // 2. Add from config (in case status is stale or doesn't include it)
+        if (config?.providers) {
+            Object.entries(config.providers).forEach(([p, prov]) => {
+                if (prov && prov.enabled) enabled.add(p);
+            });
+        }
+
+        // 3. Add generic providers (Custom ones)
+        if (config?.generic_providers) {
+            Object.entries(config.generic_providers).forEach(([key, prov]) => {
+                // If it's an array, key might be '0', but we want the provider name
+                const name = prov?.name || key;
+                if (name && name !== "generic" && prov?.enabled !== false) {
+                    enabled.add(name);
+                }
+            });
+        }
+
+        // 4. Force at least wallhaven if nothing else
+        if (enabled.size === 0) enabled.add("wallhaven");
+
+        // Convert set to sorted array
+        return Array.from(enabled).sort();
     });
 
     async function handleSearch(resetPage = true) {
@@ -49,11 +72,8 @@
             if (result && Array.isArray(result)) {
                 items = result;
             } else if (result && typeof result === "object") {
-                // Common Gower pattern: { "results": [], "page": 1, ... }
                 items =
                     result.results || result.items || result.wallpapers || [];
-
-                // If we still don't have items, find the first array property
                 if (items.length === 0) {
                     const firstArray = Object.values(result).find((val) =>
                         Array.isArray(val),
@@ -62,14 +82,19 @@
                 }
             }
 
-            // Ensure items have provider metadata
-            const mappedItems = items.map((/** @type {any} */ item) => ({
-                ...item,
-                provider: item.provider || selectedProvider,
-            }));
+            // USE the imported mapThumbnails
+            const cachePath =
+                appContext?.cache_path || config?.paths?.cache || "";
 
-            if (mappedItems.length > 0 || resetPage) {
-                searchResults = mappedItems;
+            const processedItems = mapThumbnails(items, cachePath).map(
+                (item) => ({
+                    ...item,
+                    provider: item.provider || selectedProvider,
+                }),
+            );
+
+            if (processedItems.length > 0 || resetPage) {
+                searchResults = processedItems;
             }
 
             lastSearchTime = Date.now();
@@ -249,6 +274,12 @@
     }
     .icon-btn .material-icons {
         font-size: 20px;
+    }
+
+    select {
+        flex-shrink: 0;
+        max-width: 110px;
+        text-overflow: ellipsis;
     }
 
     option {

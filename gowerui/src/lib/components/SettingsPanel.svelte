@@ -1,7 +1,7 @@
 <script>
     import { gower, checkBattery } from "$lib/api";
     import { createEventDispatcher, onMount } from "svelte";
-    import { slide } from "svelte/transition";
+    import { slide, fade } from "svelte/transition";
 
     /** @type {{config: any, status: any}} */
     let { config = $bindable(), status } = $props();
@@ -11,6 +11,7 @@
     let showProviders = $state(false);
     let newProvider = $state({ name: "", url: "", key: "" });
     let hasBattery = $state(false);
+    let providerToDelete = $state({ open: false, key: "", name: "" });
 
     onMount(async () => {
         hasBattery = await checkBattery();
@@ -323,7 +324,7 @@
         <div class="version">Version 1.1.0</div>
     {:else}
         <!-- PROVIDERS SUB-VIEW -->
-        <div class="section glass-card" transition:slide>
+        <div class="section">
             <div class="header-row">
                 <button
                     class="back-btn icon-btn"
@@ -344,7 +345,7 @@
                             <label class="switch">
                                 <input
                                     type="checkbox"
-                                    checked={status?.providers?.[key] === true}
+                                    checked={provider.enabled === true}
                                     onchange={(e) =>
                                         updateConfig(
                                             `providers.${key}.enabled`,
@@ -407,13 +408,18 @@
                             <div class="provider-actions">
                                 <button
                                     class="small-btn danger"
-                                    onclick={() => gower.removeProvider(key)}
-                                    >×</button
+                                    onclick={() => {
+                                        providerToDelete = {
+                                            open: true,
+                                            key: provider.name || key,
+                                            name: provider.name || key,
+                                        };
+                                    }}>×</button
                                 >
                                 <label class="switch">
                                     <input
                                         type="checkbox"
-                                        checked={provider.enabled}
+                                        checked={provider.enabled !== false}
                                         onchange={(e) =>
                                             updateConfig(
                                                 `generic_providers.${key}.enabled`,
@@ -510,6 +516,59 @@
                             newProvider = { name: "", url: "", key: "" };
                             setTimeout(() => dispatch("refresh"), 500);
                         }}>Añadir</button
+                    >
+                </div>
+            </div>
+        </div>
+    {/if}
+
+    {#if providerToDelete.open}
+        <div
+            class="modal-overlay"
+            transition:fade={{ duration: 150 }}
+            onclick={() => (providerToDelete.open = false)}
+            onkeydown={(e) =>
+                e.key === "Escape" && (providerToDelete.open = false)}
+            role="presentation"
+        >
+            <div
+                class="modal"
+                onclick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                tabindex="-1"
+            >
+                <h3>Eliminar Provider</h3>
+                <p class="subtext">
+                    ¿Estás seguro de que quieres eliminar <b
+                        >{providerToDelete.name}</b
+                    >?
+                </p>
+                <div class="modal-actions">
+                    <button
+                        class="btn-secondary"
+                        onclick={() => (providerToDelete.open = false)}
+                        >Cancelar</button
+                    >
+                    <button
+                        class="btn-danger"
+                        onclick={async () => {
+                            const name = providerToDelete.key;
+                            console.log("[SETTINGS] Removing provider:", name);
+                            try {
+                                const result = await gower.removeProvider(name);
+                                console.log(
+                                    "[SETTINGS] Remove result:",
+                                    result,
+                                );
+                                providerToDelete.open = false;
+                                dispatch("refresh");
+                            } catch (e) {
+                                console.error("[SETTINGS] Remove failed:", e);
+                                providerToDelete.open = false;
+                                dispatch("refresh");
+                            }
+                        }}>Eliminar</button
                     >
                 </div>
             </div>
@@ -787,8 +846,78 @@
     }
 
     .small-btn.danger {
+        color: var(--on-surface-variant);
+        font-size: 1.1rem;
+        padding: 4px 8px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        opacity: 0.6;
+        transition: all 0.2s;
+    }
+    .small-btn.danger:hover {
         color: var(--error);
-        font-size: 1.2rem;
-        padding: 0 4px;
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85); /* Darker backdrop, no blur */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        padding: var(--spacing-m);
+    }
+    .modal {
+        background: var(--surface-container-high);
+        border: 2px solid var(--outline);
+        border-radius: var(--radius-m);
+        width: 100%;
+        max-width: 320px;
+        padding: var(--spacing-l);
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-m);
+        align-items: center;
+        text-align: center;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+    @keyframes scaleIn {
+        from {
+            transform: scale(0.9);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    .modal-actions {
+        display: flex;
+        gap: var(--spacing-m);
+        width: 100%;
+    }
+    .modal-actions button {
+        flex: 1;
+        padding: 10px;
+        border-radius: var(--radius-m);
+        font-weight: bold;
+        cursor: pointer;
+        border: none;
+    }
+    .btn-secondary {
+        background: var(--surface-container-highest);
+        color: var(--on-surface);
+    }
+    .btn-danger {
+        background: var(--error);
+        color: white;
     }
 </style>

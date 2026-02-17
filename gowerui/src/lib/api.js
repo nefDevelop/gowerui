@@ -78,33 +78,37 @@ export async function checkBattery() {
 export function mapThumbnails(items, cachePath) {
     if (!items) return [];
     return items.map(item => {
-        // 1. If we have a local absolute path in thumbnail or url, use it with convertFileSrc
-        // 2. If we have a remote URL, use it as is
-        // 3. Fallback to cache path if id/ext exists
+        // Priority: thumbnail -> url -> path (absolute) -> id/ext (cache)
+        let path = item.thumbnail || item.url || item.path || '';
 
-        let path = item.thumbnail || item.url || '';
-
-        if (path.startsWith('http')) {
-            // It's a remote URL, keep it
+        if (path.startsWith('http') || path.startsWith('asset:') || path.startsWith('https://asset.')) {
+            // Already a valid URL or asset URL, keep it
             item.thumbnail = path;
-        } else if (path.startsWith('/')) {
+        } else if (path !== '' && (path.startsWith('/') || path.startsWith('C:\\') || path.startsWith('\\'))) {
             // It's an absolute local path, must use convertFileSrc
             let converted = convertFileSrc(path);
-            if (converted === path && !path.startsWith('asset:')) {
-                // Manual fallback for Linux if convertFileSrc returns raw path
+
+            // Safety fallback for Linux: ensure it starts with asset://localhost
+            if (converted.startsWith('/') && !converted.startsWith('asset:')) {
+                converted = `asset://localhost${converted}`;
+            } else if (converted === path && !path.startsWith('asset:')) {
                 converted = `asset://localhost${path}`;
             }
+
             item.thumbnail = converted;
         } else if (item.id && item.ext) {
             // Use cache fallback
             const ext = item.ext.startsWith('.') ? item.ext : `.${item.ext}`;
             const fullPath = `${cachePath}/thumbs/${item.id}${ext}`;
             let converted = convertFileSrc(fullPath);
-            if (converted === fullPath && !fullPath.startsWith('asset:')) {
+            if (converted.startsWith('/') && !converted.startsWith('asset:')) {
+                converted = `asset://localhost${fullPath}`;
+            } else if (converted === fullPath && !fullPath.startsWith('asset:')) {
                 converted = `asset://localhost${fullPath}`;
             }
             item.thumbnail = converted;
         } else {
+            // No valid path found
             item.thumbnail = '';
         }
 

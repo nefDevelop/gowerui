@@ -77,14 +77,26 @@
 
     /**
      * @param {string} message
-     * @param {'success' | 'error' | 'info'} type
+     * @param {'success' | 'error' | 'info' | 'loading'} type
+     * @param {number} [existingId]
      */
-    function notify(message, type = "success") {
-        const id = Date.now();
-        notifications.push({ id, message, type });
-        setTimeout(() => {
-            notifications = notifications.filter((n) => n.id !== id);
-        }, 3000);
+    function notify(message, type = "success", existingId = undefined) {
+        const id = existingId || Date.now();
+        const notification = { id, message, type };
+
+        const index = notifications.findIndex((n) => n.id === id);
+        if (index !== -1) {
+            notifications[index] = notification;
+        } else {
+            notifications.push(notification);
+        }
+
+        if (type !== "loading") {
+            setTimeout(() => {
+                notifications = notifications.filter((n) => n.id !== id);
+            }, 3500);
+        }
+        return id;
     }
 
     const sortOptions = [
@@ -241,13 +253,15 @@
     async function handleDownload(item) {
         if (!item) return;
         const snap = $state.snapshot(item);
+        const nid = notify("Descargando...", "loading");
         try {
             await gower.download(snap.id);
-            notify("Descarga iniciada", "success");
-            // After starting download, we should update local state if possible
-            // but download is async in backend, so maybe we just wait for next poll
+            notify("Descarga completada", "success", nid);
+            // Refresh feed to show 'downloaded' badge
+            await refreshCurrentWallpapers();
+            if (currentTab === "home") await loadHome(false);
         } catch (e) {
-            notify("Error al iniciar descarga", "error");
+            notify("Error al descargar", "error", nid);
             console.error("Download failed:", e);
         }
     }
@@ -722,6 +736,7 @@
                 <SearchPanel
                     {config}
                     {status}
+                    {appContext}
                     {favoritesModel}
                     bind:searchResults
                     bind:searchQuery
@@ -938,13 +953,17 @@
     <div class="notifications">
         {#each notifications as n (n.id)}
             <div class="notification {n.type}" transition:fade>
-                <span class="material-icons">
-                    {n.type === "success"
-                        ? "check_circle"
-                        : n.type === "error"
-                          ? "error"
-                          : "info"}
-                </span>
+                {#if n.type === "loading"}
+                    <div class="spinner"></div>
+                {:else}
+                    <span class="material-icons">
+                        {n.type === "success"
+                            ? "check_circle"
+                            : n.type === "error"
+                              ? "error"
+                              : "info"}
+                    </span>
+                {/if}
                 {n.message}
             </div>
         {/each}
@@ -1085,8 +1104,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(4px);
+        background: rgba(0, 0, 0, 0.7);
     }
 
     .context-menu-backdrop {
@@ -1305,26 +1323,29 @@
     }
     .notifications {
         position: fixed;
-        bottom: 100px;
-        right: 20px;
+        bottom: 75px; /* Above nav tab line */
+        left: 50%;
+        transform: translateX(-50%);
         display: flex;
         flex-direction: column;
+        align-items: center;
         gap: 10px;
-        z-index: 1000;
+        z-index: 2000;
         pointer-events: none;
+        width: 100%;
+        max-width: 400px;
     }
 
     .notification {
         background: var(--surface-container-high);
         color: var(--on-surface);
-        padding: 12px 20px;
-        border-radius: var(--radius-m);
+        padding: 10px 16px;
+        border-radius: var(--radius-l);
         display: flex;
         align-items: center;
         gap: 10px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        border: 1px solid var(--glass-border);
-        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+        border: 1px solid var(--outline);
         font-weight: 500;
         min-width: 200px;
     }
@@ -1335,10 +1356,28 @@
     .notification.error {
         border-left: 4px solid var(--error);
     }
+    .notification.loading {
+        border-left: 4px solid var(--primary);
+    }
     .notification.success span {
         color: #4caf50;
     }
     .notification.error span {
         color: var(--error);
+    }
+
+    .spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
     }
 </style>
