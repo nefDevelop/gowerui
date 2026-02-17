@@ -67,8 +67,7 @@
             : "";
         const cleanPath = path ? path.replace(/\/$/, "") : "";
 
-        return (cleanCollection && cleanPath.startsWith(cleanCollection));
-    }
+        return cleanCollection && cleanPath.startsWith(cleanCollection);
     }
 </script>
 
