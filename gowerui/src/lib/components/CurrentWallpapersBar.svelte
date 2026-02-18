@@ -1,5 +1,6 @@
 <script>
     import { createEventDispatcher } from "svelte";
+    import { t } from "$lib/stores/i18n";
     import { fade } from "svelte/transition";
 
     /** @type {any[]} */
@@ -32,14 +33,14 @@
                     <div class="overlay">
                         <button
                             onclick={() => openFolder(item)}
-                            title="Abrir carpeta"
+                            title={$t("current.open_folder")}
                         >
                             <span class="material-icons">folder_open</span>
                         </button>
                         <button
                             class="danger"
                             onclick={() => deleteWallpaper(item)}
-                            title="Eliminar"
+                            title={$t("common.delete")}
                         >
                             <span class="material-icons">delete</span>
                         </button>

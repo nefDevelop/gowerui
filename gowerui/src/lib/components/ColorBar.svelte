@@ -1,5 +1,6 @@
 <script>
     import { createEventDispatcher } from "svelte";
+    import { t } from "$lib/stores/i18n";
 
     export let colors = [
         "#FF0000",
@@ -32,7 +33,7 @@
             class:last={i === colors.length - 1}
             class:selected={selectedColor === color}
             onclick={() => selectColor(color)}
-            aria-label="Seleccionar color {color}"
+            aria-label={$t("color.select", { color })}
         >
             {#if selectedColor === color}
                 <span class="material-icons check-icon">check</span>

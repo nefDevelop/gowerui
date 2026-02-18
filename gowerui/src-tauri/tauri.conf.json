@@ -30,7 +30,9 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
-          "**"
+          "$HOME/**",
+          "$APPDATA/**",
+          "$RESOURCE/**"
         ]
       }
     }

@@ -1,5 +1,7 @@
 <script>
     import { onMount, tick, untrack } from "svelte";
+    import { t } from "$lib/stores/i18n";
+    import { theme } from "$lib/stores/theme";
     import { gower, getAppContext, mapThumbnails } from "$lib/api";
     import { fade } from "svelte/transition";
     import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -100,19 +102,21 @@
     }
 
     const sortOptions = [
-        "Smart",
-        "Newest",
-        "Oldest",
-        "Source",
-        "Unseen",
-        "Random",
+        { value: "Smart", label: "sort.smart" },
+        { value: "Newest", label: "sort.newest" },
+        { value: "Oldest", label: "sort.oldest" },
+        { value: "Source", label: "Source" },
+        { value: "Unseen", label: "Unseen" },
+        { value: "Random", label: "sort.random" },
+        { value: "A-Z", label: "sort.a_z" },
+        { value: "Z-A", label: "sort.z_a" },
     ];
 
     const tabs = [
-        { id: "home", icon: "home", label: "Inicio" },
-        { id: "search", icon: "search", label: "Buscar" },
-        { id: "favorites", icon: "star", label: "Favoritos" },
-        { id: "settings", icon: "settings", label: "Ajustes" },
+        { id: "home", icon: "home", label: "tabs.home" },
+        { id: "search", icon: "search", label: "tabs.search" },
+        { id: "favorites", icon: "star", label: "tabs.favorites" },
+        { id: "settings", icon: "settings", label: "tabs.settings" },
     ];
 
     // --- ACTIONS ---
@@ -716,15 +720,19 @@
                 onclick={() => (currentTab = tab.id)}
             >
                 <span class="material-icons">{tab.icon}</span>
-                <span class="label">{tab.label}</span>
+                <span class="label">{$t(tab.label)}</span>
             </button>
         {/each}
         <div class="nav-spacer"></div>
         <button
             class="theme-toggle"
-            onclick={() => /** @type {any} */ (window).__toggleTheme()}
+            onclick={() => theme.toggle()}
             title="Cambiar tema"
         >
+            <!-- Show icon BASED on current effective theme -->
+            <!-- We need a reactive way to know if we are effectively dark or light when system is selected -->
+            <!-- For simplicity, let's just show standard icons based on store value or just toggler -->
+            <!-- Actually, let's use the CSS-based approach we had, but linked to the class on html -->
             <span class="material-icons theme-icon-light">light_mode</span>
             <span class="material-icons theme-icon-dark">dark_mode</span>
         </button>

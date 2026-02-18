@@ -1,5 +1,7 @@
 <script>
     import { gower, checkBattery } from "$lib/api";
+    import { t, locale } from "$lib/stores/i18n";
+    import { theme } from "$lib/stores/theme";
     import { createEventDispatcher, onMount } from "svelte";
     import { slide, fade } from "svelte/transition";
 
@@ -74,9 +76,9 @@
 <div class="settings-panel premium-scroll">
     {#if !showProviders}
         <div class="section glass-card">
-            <h3>Daemon</h3>
+            <h3>{$t("settings.daemon")}</h3>
             <div class="row">
-                <span>Estado del servicio</span>
+                <span>{$t("settings.daemon.status")}</span>
                 <div class="status-control">
                     <span
                         class="status-text"
@@ -89,14 +91,14 @@
                     >
                         {#if isDaemonTransitioning}
                             {optimisticDaemonState
-                                ? "INICIANDO..."
-                                : "DETENIENDO..."}
+                                ? $t("settings.daemon.starting")
+                                : $t("settings.daemon.stopping")}
                         {:else}
                             {status?.daemon_running ||
                             status?.daemon?.running ||
                             status?.running
-                                ? "ACTIVO"
-                                : "INACTIVO"}
+                                ? $t("settings.daemon.active")
+                                : $t("settings.daemon.inactive")}
                         {/if}
                     </span>
                     <label
@@ -127,7 +129,7 @@
                 </div>
             </div>
             <div class="row">
-                <span>Intervalo (minutos)</span>
+                <span>{$t("settings.interval")}</span>
                 <input
                     type="number"
                     value={config?.behavior?.change_interval || 30}
@@ -142,7 +144,7 @@
                 />
             </div>
             <div class="row">
-                <span>Auto Descarga</span>
+                <span>{$t("settings.auto_download")}</span>
                 <label class="switch">
                     <input
                         type="checkbox"
@@ -160,25 +162,29 @@
         </div>
 
         <div class="section glass-card">
-            <h3>Comportamiento</h3>
+            <h3>{$t("settings.behavior")}</h3>
             <div class="row">
-                <span>Respetar Modo Oscuro</span>
-                <label class="switch">
-                    <input
-                        type="checkbox"
-                        checked={config?.behavior?.respect_dark_mode || false}
-                        onchange={(e) =>
-                            updateConfig(
-                                "behavior.respect_dark_mode",
-                                /** @type {HTMLInputElement} */ (e.target)
-                                    .checked,
-                            )}
-                    />
-                    <span class="slider"></span>
-                </label>
+                <span>{$t("settings.theme")}</span>
+                <select
+                    value={$theme}
+                    onchange={(e) => {
+                        const val = /** @type {HTMLSelectElement} */ (e.target)
+                            .value;
+                        theme.set(
+                            /** @type {import('$lib/stores/theme').Theme} */ (
+                                val
+                            ),
+                        );
+                    }}
+                >
+                    <option value="system">{$t("settings.theme.system")}</option
+                    >
+                    <option value="light">{$t("settings.theme.light")}</option>
+                    <option value="dark">{$t("settings.theme.dark")}</option>
+                </select>
             </div>
             <div class="row">
-                <span>Solo Favoritos</span>
+                <span>{$t("settings.only_favorites")}</span>
                 <label class="switch">
                     <input
                         type="checkbox"
@@ -194,7 +200,7 @@
                 </label>
             </div>
             <div class="row">
-                <span>Guardar favoritos en carpeta</span>
+                <span>{$t("settings.save_favorites")}</span>
                 <label class="switch">
                     <input
                         type="checkbox"
@@ -212,7 +218,7 @@
             </div>
             {#if hasBattery}
                 <div class="row">
-                    <span>Pausar con Batería Baja</span>
+                    <span>{$t("settings.power.pause_low_battery")}</span>
                     <label class="switch">
                         <input
                             type="checkbox"
@@ -229,7 +235,7 @@
                     </label>
                 </div>
                 <div class="row">
-                    <span>Umbral Batería (%)</span>
+                    <span>{$t("settings.power.threshold")}</span>
                     <input
                         type="number"
                         value={config?.power?.low_battery_threshold || 20}
@@ -247,9 +253,9 @@
         </div>
 
         <div class="section glass-card">
-            <h3>Display</h3>
+            <h3>{$t("settings.display")}</h3>
             <div class="row">
-                <span>Modo Multi-Monitor</span>
+                <span>{$t("settings.multi_monitor")}</span>
                 <select
                     value={config?.behavior?.multi_monitor || "distinct"}
                     onchange={(e) =>
@@ -258,16 +264,32 @@
                             /** @type {HTMLSelectElement} */ (e.target).value,
                         )}
                 >
-                    <option value="distinct">Independiente (Distinct)</option>
-                    <option value="clone">Clonar (Clone)</option>
+                    <option value="distinct"
+                        >{$t("settings.monitor.distinct")}</option
+                    >
+                    <option value="clone">{$t("settings.monitor.clone")}</option
+                    >
                 </select>
             </div>
         </div>
 
         <div class="section glass-card">
-            <h3>General</h3>
+            <h3>{$t("settings.general")}</h3>
+            <div class="row">
+                <span>{$t("language")}</span>
+                <select
+                    value={$locale}
+                    onchange={(e) =>
+                        locale.set(
+                            /** @type {HTMLSelectElement} */ (e.target).value,
+                        )}
+                >
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
             <div class="col">
-                <span>Carpeta de Wallpapers</span>
+                <span>{$t("settings.wallpapers_folder")}</span>
                 <div class="input-group">
                     <input
                         type="text"
@@ -280,7 +302,7 @@
                 </div>
             </div>
             <div class="row">
-                <span>Usar Directorio del Sistema</span>
+                <span>{$t("settings.use_system_dir")}</span>
                 <label class="switch">
                     <input
                         type="checkbox"
@@ -296,7 +318,7 @@
                 </label>
             </div>
             <div class="row">
-                <span>Indexar Carpeta</span>
+                <span>{$t("settings.index_folder")}</span>
                 <label class="switch">
                     <input
                         type="checkbox"
@@ -317,8 +339,8 @@
             class="section glass-card clickable"
             onclick={() => (showProviders = true)}
         >
-            <h3>Providers &nbsp; ›</h3>
-            <p class="subtext">Configurar fuentes de wallpapers</p>
+            <h3>{$t("settings.providers.title")} &nbsp; ›</h3>
+            <p class="subtext">{$t("settings.providers.subtitle")}</p>
         </button>
 
         <div class="version">Version 1.1.0</div>
@@ -332,7 +354,7 @@
                 >
                     <span class="material-icons">arrow_back</span>
                 </button>
-                <h3 class="title-centered">Providers</h3>
+                <h3 class="title-centered">{$t("settings.providers.title")}</h3>
             </div>
 
             <div class="providers-list">
@@ -398,7 +420,7 @@
                     </div>
                 {/each}
 
-                <h4>Custom Providers</h4>
+                <h4>{$t("settings.providers.custom")}</h4>
                 {#each Object.entries(config?.generic_providers || {}) as [key, provider]}
                     <div class="provider-item">
                         <div class="provider-header">
@@ -463,7 +485,7 @@
 
                 <!-- Add Provider form condensed -->
                 <div class="add-provider">
-                    <h4>Añadir Custom</h4>
+                    <h4>{$t("settings.providers.add")}</h4>
                     <input
                         type="text"
                         placeholder="Nombre (ej: wallpapers)"
@@ -472,14 +494,20 @@
                     <div class="input-with-label">
                         <input
                             type="text"
-                            placeholder="URL o r/subreddit"
+                            placeholder={$t(
+                                "settings.providers.url_placeholder",
+                            )}
                             bind:value={newProvider.url}
                         />
                         {#if newProvider.url
                             .trim()
                             .toLowerCase()
                             .startsWith("r/")}
-                            <span class="badge">Reddit Detectado</span>
+                            <span class="badge"
+                                >{$t(
+                                    "settings.providers.reddit_detected",
+                                )}</span
+                            >
                         {/if}
                     </div>
 
@@ -515,7 +543,7 @@
                             }
                             newProvider = { name: "", url: "", key: "" };
                             setTimeout(() => dispatch("refresh"), 500);
-                        }}>Añadir</button
+                        }}>{$t("settings.providers.add_btn")}</button
                     >
                 </div>
             </div>
@@ -539,17 +567,16 @@
                 aria-modal="true"
                 tabindex="-1"
             >
-                <h3>Eliminar Provider</h3>
+                <h3>{$t("settings.delete_provider.title")}</h3>
                 <p class="subtext">
-                    ¿Estás seguro de que quieres eliminar <b
-                        >{providerToDelete.name}</b
-                    >?
+                    {$t("settings.delete_provider.confirm")}
+                    <b>{providerToDelete.name}</b>?
                 </p>
                 <div class="modal-actions">
                     <button
                         class="btn-secondary"
                         onclick={() => (providerToDelete.open = false)}
-                        >Cancelar</button
+                        >{$t("settings.delete_provider.cancel")}</button
                     >
                     <button
                         class="btn-danger"
@@ -569,7 +596,7 @@
                                 providerToDelete.open = false;
                                 dispatch("refresh");
                             }
-                        }}>Eliminar</button
+                        }}>{$t("settings.delete_provider.delete")}</button
                     >
                 </div>
             </div>

@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { notifications } from './stores/notifications';
 
 /**
  * Extracts a JSON string from a text that might contain other content.
@@ -56,6 +57,15 @@ export async function runGower(args, silent = false, background = false) {
     } catch (e) {
         const duration = Date.now() - startTime;
         console.error(`[GOWER] Command failed (${duration}ms):`, e);
+
+        if (!silent) {
+            const err = /** @type {any} */ (e);
+            const msg = typeof err === 'string' ? err : err.message || 'Error desconocido';
+            // Clean up error message if it's too technical or verbose?
+            // For now, raw message is better than nothing.
+            notifications.add(`Error: ${msg}`, 'error', 5000);
+        }
+
         throw e;
     }
 }

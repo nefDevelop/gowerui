@@ -1,6 +1,7 @@
 <script>
     import { gower, mapThumbnails } from "$lib/api";
     import WallpaperGrid from "./WallpaperGrid.svelte";
+    import { t } from "$lib/stores/i18n";
     import { createEventDispatcher } from "svelte";
 
     const dispatch = createEventDispatcher();
@@ -137,12 +138,12 @@
         </select>
         <input
             type="text"
-            placeholder="Buscar..."
+            placeholder={$t("search.placeholder")}
             bind:value={searchQuery}
             onkeydown={(e) => e.key === "Enter" && handleSearch(true)}
         />
         <button class="btn-primary" onclick={() => handleSearch(true)}
-            >Buscar</button
+            >{$t("search.button")}</button
         >
     </div>
 
@@ -176,7 +177,9 @@
                         >
                             <span class="material-icons">chevron_left</span>
                         </button>
-                        <span class="page-num">Página {searchPage}</span>
+                        <span class="page-num"
+                            >{$t("search.page", { page: searchPage })}</span
+                        >
                         <button
                             class="icon-btn"
                             onclick={() => {
@@ -190,9 +193,9 @@
                 </div>
             {/if}
         {:else if !loading && searchQuery}
-            <div class="empty">No se encontraron resultados.</div>
+            <div class="empty">{$t("search.no_results")}</div>
         {:else}
-            <div class="empty hint">Busca algo increíble.</div>
+            <div class="empty hint">{$t("search.hint")}</div>
         {/if}
     </div>
 </div>

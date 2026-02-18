@@ -1,13 +1,14 @@
 <script>
     import { createEventDispatcher } from "svelte";
+    import { t } from "$lib/stores/i18n";
 
     export let sortOptions = [
-        "Smart",
-        "Newest",
-        "Oldest",
-        "Source",
-        "Unseen",
-        "Random",
+        { value: "Smart", label: "sort.smart" },
+        { value: "Newest", label: "sort.newest" },
+        { value: "Oldest", label: "sort.oldest" },
+        { value: "Source", label: "Source" }, // Provide defaults if no key
+        { value: "Unseen", label: "Unseen" },
+        { value: "Random", label: "sort.random" },
     ];
     export let currentSort = "Smart";
     export let currentPage = 1;
@@ -41,7 +42,9 @@
             onchange={handleSortChange}
         >
             {#each sortOptions as option}
-                <option value={option}>{option}</option>
+                <option value={option.value}
+                    >{$t(option.label) || option.value}</option
+                >
             {/each}
         </select>
     </div>

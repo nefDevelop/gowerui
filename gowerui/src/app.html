@@ -8,47 +8,21 @@
   <title>Tauri + SvelteKit App</title>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <script>
+    // Minimal script to prevent FOUC (Flash of Unstyled Content) if possible, 
+    // or just let the store handle it. The store runs early enough usually.
+    // But for best experience, we can check localStorage here.
     (function () {
-      console.log("[Theme] Initialized. Environment: Linux/Niri");
-
-      function applyTheme() {
-        const savedTheme = localStorage.getItem('gower-theme');
+      try {
+        const saved = localStorage.getItem('gower-theme');
         const systemLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+        let theme = saved || 'system';
 
-        let theme = 'dark'; // Default
-
-        if (savedTheme) {
-          theme = savedTheme;
-          console.log("[Theme] Using saved preference:", theme);
-        } else {
-          // On Linux/Niri, if we haven't saved a preference, we default to DARK
-          // because light detection is often a false positive.
-          console.log("[Theme] No saved preference. Defaulting to DARK (ignoring system " + (systemLight ? 'Light' : 'Dark') + ")");
-          theme = 'dark';
+        if (theme === 'system') {
+          theme = systemLight ? 'light' : 'dark';
         }
 
-        document.documentElement.classList.toggle('light-theme', theme === 'light');
-        document.documentElement.classList.toggle('dark-theme', theme === 'dark');
-
-        console.log("[Theme] Applied:", theme, "(System light=" + systemLight + ")");
-      }
-
-      // Initial apply
-      applyTheme();
-
-      // Listen for window-shown event from Rust (Tray click)
-      document.addEventListener('window-shown', () => {
-        console.log("[Theme] App shown from tray, refreshing logic...");
-        applyTheme();
-      });
-
-      // Export for UI toggle
-      window.__toggleTheme = function () {
-        const isCurrentLight = document.documentElement.classList.contains('light-theme');
-        const newTheme = isCurrentLight ? 'dark' : 'light';
-        localStorage.setItem('gower-theme', newTheme);
-        applyTheme();
-      };
+        document.documentElement.classList.add(theme + '-theme');
+      } catch (e) { console.error(e); }
     })();
   </script>
   %sveltekit.head%

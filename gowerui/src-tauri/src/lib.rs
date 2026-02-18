@@ -40,6 +40,23 @@ async fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
     Ok(context)
 }
 
+fn resolve_gower_path(home: std::path::PathBuf) -> (String, bool) {
+    let candidates = vec![
+        home.join("go/bin/gower").to_string_lossy().to_string(),
+        "gower".to_string(),
+        "/usr/local/bin/gower".to_string(),
+        "/usr/bin/gower".to_string(),
+    ];
+
+    for candidate in &candidates {
+        if candidate == "gower" { continue; }
+        if std::path::Path::new(candidate).exists() {
+            return (candidate.clone(), true);
+        }
+    }
+    ("gower".to_string(), false)
+}
+
 #[tauri::command]
 async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background: Option<bool>) -> Result<String, String> {
     let now = Local::now().format("%Y-%m-%d %H:%M:%S");
@@ -52,16 +69,16 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
     }
     
     let home = app.path().home_dir().map_err(|e| e.to_string())?;
-    let gower_path = home.join("go/bin/gower");
-    
-    let (cmd_bin, _is_fallback) = if gower_path.exists() {
-        (gower_path.to_string_lossy().to_string(), false)
-    } else {
-        ("gower".to_string(), true)
-    };
+    let (cmd_to_run, found) = resolve_gower_path(home);
 
+    if found {
+        println!("[{}] Found gower binary at: {}", now, cmd_to_run);
+    } else {
+        println!("[{}] gower binary not found in known paths, using 'gower' from PATH", now);
+    }
+    
     if is_bg {
-        let cmd_bin_clone = cmd_bin.clone();
+        let cmd_bin_clone = cmd_to_run.clone();
         let args_clone = args.clone();
         let app_handle = app.clone();
         
@@ -80,25 +97,26 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
                 let now_done = Local::now().format("%Y-%m-%d %H:%M:%S");
                 println!("[{}] BG command finished (success={}): {:?}", now_done, success, args_clone);
                 
-                // Optional: Emit event to frontend if needed
                 if success {
                     let _ = app_handle.emit("gower-command-finished", args_clone);
                 }
+            } else if let Err(e) = output {
+                 println!("[{}] BG command failed to start: {}", now_bg, e);
             }
         });
         
         return Ok("Backgrounded".to_string());
     }
 
-    println!("[{}] Executing external command: {} {:?}", now, cmd_bin, args);
+    println!("[{}] Executing external command: {} {:?}", now, cmd_to_run, args);
 
-    let output: std::process::Output = Command::new(&cmd_bin)
+    let output: std::process::Output = Command::new(&cmd_to_run)
         .envs(std::env::vars())
         .args(&args)
         .output()
         .await
         .map_err(|e| {
-            format!("Command execution failed: {}. Path attempted: {}", e, cmd_bin)
+            format!("Command execution failed: {}. Path attempted: {}", e, cmd_to_run)
         })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -128,12 +146,24 @@ async fn check_battery() -> Result<bool, String> {
     }
     #[cfg(target_os = "windows")]
     {
-        // Simple heuristic for now, or use winapi for real check
-        Ok(true) 
+        // Use PowerShell to check for battery status
+        let output = Command::new("powershell")
+            .args(&["-NoProfile", "-Command", "Get-WmiObject Win32_Battery | Measure-Object | Select-Object -ExpandProperty Count"])
+            .output()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if output.status.success() {
+            let count_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if let Ok(count) = count_str.parse::<i32>() {
+                return Ok(count > 0);
+            }
+        }
+        Ok(false) // Fallback or no battery found
     }
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
-        Ok(true)
+        Ok(true) // Assume true for other OSs (like macOS) for now or implement equivalent
     }
 }
 
@@ -159,11 +189,11 @@ pub fn run() {
                         }
                         "show" => {
                              if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.unminimize();
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                                let _ = window.emit("window-shown", "shown");
-                            }
+                                 let _ = window.unminimize();
+                                 let _ = window.show();
+                                 let _ = window.set_focus();
+                                 let _ = window.emit("window-shown", "shown");
+                             }
                         }
                         _ => {}
                     }
@@ -194,4 +224,18 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_resolve_gower_path_fallback() {
+        let home = PathBuf::from("/non/existent/home");
+        let (path, found) = resolve_gower_path(home);
+        assert_eq!(path, "gower");
+        assert!(!found);
+    }
 }

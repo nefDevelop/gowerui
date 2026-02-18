@@ -1,5 +1,6 @@
 <script>
     import { createEventDispatcher } from "svelte";
+    import { t } from "$lib/stores/i18n";
     import { fade } from "svelte/transition";
 
     /** @type {any[]} */
@@ -105,7 +106,7 @@
                             e.stopPropagation();
                             dispatch("block", item);
                         }}
-                        title="Añadir a lista negra"
+                        title={$t("grid.add_to_blacklist")}
                         class="block-btn"
                     >
                         <span class="material-icons">visibility_off</span>
@@ -118,8 +119,8 @@
                                 dispatch("favorite", item);
                             }}
                             title={isFavorite(item.id)
-                                ? "Quitar de favoritos"
-                                : "Añadir a favoritos"}
+                                ? $t("grid.remove_from_favorites")
+                                : $t("grid.add_to_favorites")}
                         >
                             <span
                                 class="material-icons"
@@ -138,7 +139,7 @@
                                 e.stopPropagation();
                                 dispatch("download", item);
                             }}
-                            title="Descargar"
+                            title={$t("grid.download")}
                             class="download-btn"
                         >
                             <span class="material-icons">download</span>
@@ -152,7 +153,7 @@
                                 e.stopPropagation();
                                 dispatch("favorite", item);
                             }}
-                            title="Eliminar"
+                            title={$t("common.delete")}
                         >
                             <span class="material-icons">delete</span>
                         </button>
