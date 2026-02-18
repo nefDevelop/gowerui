@@ -18,6 +18,7 @@ Object.defineProperty(window, 'matchMedia', {
 
 // Mock localStorage
 const localStorageMock = (function () {
+    /** @type {Record<string, string>} */
     let store = {};
     return {
         getItem: vi.fn(key => store[key] || null),

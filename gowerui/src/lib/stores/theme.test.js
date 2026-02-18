@@ -38,7 +38,8 @@ describe('Theme Store', () => {
 
     it('should handle system preference detection (simulated)', () => {
         // Mock matchMedia to return light
-        window.matchMedia.mockReturnValue({
+        /** @type {import('vitest').Mock} */
+        (window.matchMedia).mockReturnValue({
             matches: true,
             addEventListener: vi.fn(),
             removeEventListener: vi.fn(),

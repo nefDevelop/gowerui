@@ -35,11 +35,9 @@
      */
     function normalizeId(id) {
         if (!id) return "";
-        // Clean ID: Remove local_ prefix and any provider prefixes/suffixes
-        // wh_123 -> 123, local_wh_123 -> 123
+        // Clean ID: Remove provider prefixes/suffixes
         return String(id)
-            .replace(/^local_/, "")
-            .replace(/^(wh_|wallhaven_|reddit_|bing_|unsplash_|nasa_)/, "")
+            .replace(/^(wh_|wallhaven_|reddit_|rd_|bing_|unsplash_|nasa_)/, "")
             .split(/[?#.]/)[0]; // Remove extensions or URLs params
     }
 
@@ -56,6 +54,10 @@
      */
     function isDownloaded(item) {
         if (!item) return false;
+
+        // Explicit flag (can be set manually when download finishes)
+        if (item.downloaded) return true;
+
         const url = item.url || "";
 
         // User rule: if it doesn't start with http, it's local/downloaded

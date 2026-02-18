@@ -289,10 +289,7 @@
         if (!id) return "";
         // ID is now stable, but we still strip provider prefixes for consistent comparison
         return String(id)
-            .replace(
-                /^(wh_|wallhaven_|reddit_|bing_|unsplash_|nasa_|local_)/,
-                "",
-            )
+            .replace(/^(wh_|wallhaven_|reddit_|rd_|bing_|unsplash_|nasa_)/, "")
             .split(/[?#.]/)[0];
     }
 
@@ -301,8 +298,11 @@
      */
     function isDownloaded(item) {
         if (!item) return false;
-        const url = item.url || "";
 
+        // Explicit session flag
+        if (item.downloaded) return true;
+
+        const url = item.url || "";
         // User rule: if it doesn't start with http, it's local
         if (url && !url.startsWith("http")) return true;
 
@@ -684,6 +684,38 @@
             if (args.includes("favorites") || args.includes("blacklist")) {
                 loadFavorites();
             }
+
+            // Handle download completion specifically to mark items as downloaded in UI
+            if (args.includes("download")) {
+                const downloadId = args.find(
+                    (a) =>
+                        !a.startsWith("-") &&
+                        a !== "download" &&
+                        a !== "feed" &&
+                        a !== "update",
+                );
+                if (downloadId) {
+                    const nid = normalizeId(downloadId);
+                    const updateList = (/** @type {any[]} */ list) =>
+                        list.map((item) => {
+                            if (normalizeId(item.id) === nid) {
+                                return { ...item, downloaded: true };
+                            }
+                            return item;
+                        });
+
+                    if (searchResults.length > 0) {
+                        searchResults = updateList(searchResults);
+                    }
+                    if (feedModel.length > 0) {
+                        feedModel = updateList(feedModel);
+                    }
+                    if (favoritesModel.length > 0) {
+                        favoritesModel = updateList(favoritesModel);
+                    }
+                }
+            }
+
             if (
                 args.includes("feed") &&
                 (args.includes("update") || args.includes("download"))

@@ -25,6 +25,7 @@ function createNotificationStore() {
                 }, timeout);
             }
         },
+        /** @param {string} id */
         remove: (id) => update(n => n.filter(t => t.id !== id))
     };
 }

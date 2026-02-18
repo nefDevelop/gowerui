@@ -3,6 +3,7 @@
     import { fly, fade } from "svelte/transition";
     import { flip } from "svelte/animate";
 
+    /** @param {'info' | 'success' | 'error' | 'warning'} type */
     function getTypeColor(type) {
         switch (type) {
             case "error":
@@ -16,6 +17,7 @@
         }
     }
 
+    /** @param {'info' | 'success' | 'error' | 'warning'} type */
     function getIcon(type) {
         switch (type) {
             case "error":

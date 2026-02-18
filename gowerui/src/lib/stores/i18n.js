@@ -12,6 +12,7 @@ function createI18nStore() {
 
     return {
         subscribe,
+        /** @param {string} l */
         set: (l) => {
             if (typeof localStorage !== 'undefined') {
                 localStorage.setItem('locale', l);
@@ -24,19 +25,30 @@ function createI18nStore() {
 
 export const locale = createI18nStore();
 
-export const t = derived(locale, ($locale) => (key, vars = {}) => {
-    // Helper to access nested properties if we decide to nest later (currently flat)
-    // For now, simple lookup
-    let text = dictionary[$locale]?.[key] || key;
+/** @type {import('svelte/store').Readable<(key: string, vars?: Record<string, any>) => string>} */
+export const t = derived(locale, ($locale) =>
+    /**
+     * @param {string} key
+     * @param {Record<string, any>} [vars={}]
+     * @returns {string}
+     */
+    (key, vars = {}) => {
+        // Helper to access nested properties if we decide to nest later (currently flat)
+        // For now, simple lookup
+        /** @type {any} */
+        const dict = dictionary;
+        /** @type {string} */
+        let text = dict[$locale]?.[key] || key;
 
-    // Simple variable replacement {var}
-    Object.keys(vars).forEach(k => {
-        const regex = new RegExp(`{${k}}`, 'g');
-        text = text.replace(regex, vars[k]);
-    });
+        // Simple variable replacement {var}
+        Object.entries(vars).forEach(([k, v]) => {
+            const regex = new RegExp(`{${k}}`, 'g');
+            text = text.replace(regex, String(v));
+        });
 
-    return text;
-});
+        return text;
+    }
+);
 
 // Helper to get raw dictionary if needed
 export const locales = Object.keys(dictionary);
