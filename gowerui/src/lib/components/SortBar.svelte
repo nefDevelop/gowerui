@@ -14,10 +14,12 @@
 
     const dispatch = createEventDispatcher();
 
+    /** @param {any} e */
     function handleSortChange(e) {
         dispatch("sort", e.target.value);
     }
 
+    /** @param {any} e */
     function handlePageChange(e) {
         const val = parseInt(e.target.value);
         if (!isNaN(val) && val > 0) {
