@@ -125,61 +125,76 @@
         if (reset) {
             feedPage = 1;
         }
-        loading = true;
-        // Don't clear feedModel here to avoid flickering and movement.
-        // The grid will update once data arrives.
+        // Only show loading skeletons if we don't have items yet
+        if (feedModel.length === 0) loading = true;
 
         try {
-            const result = await gower.getFeed(
-                feedPage,
-                9,
-                selectedColor,
-                currentSort.toLowerCase(),
-            );
+            // Fetch feed and colors in parallel
+            const [result, colorsResult] = await Promise.all([
+                gower.getFeed(
+                    feedPage,
+                    9,
+                    selectedColor,
+                    currentSort.toLowerCase(),
+                ),
+                gower.getFeedColors(),
+            ]);
+
             /** @type {any[]} */
             let newItems = mapThumbnails(result || [], appContext.cache_path);
-
             const existingIds = new Set();
             newItems = newItems.filter((i) => !existingIds.has(i.id));
 
             feedModel = newItems;
 
-            // Fetch colors for feed
-            const colorsResult = await gower.getFeedColors();
             if (Array.isArray(colorsResult)) {
                 feedColors = colorsResult;
             }
         } catch (e) {
-            console.error(e);
+            console.error("Error loading home feed:", e);
         } finally {
             loading = false;
         }
     }
 
+    let favoritesLoading = $state(false);
     async function loadFavorites() {
-        if (!appContext) return;
+        if (!appContext || favoritesLoading) return;
+
+        // Show loading only if empty to avoid flicker
+        if (favoritesModel.length === 0) favoritesLoading = true;
+
         try {
-            const result = await gower.getFavorites(selectedColor);
+            const [result, colorsResult] = await Promise.all([
+                gower.getFavorites(selectedColor),
+                gower.getFavoritesColors(),
+            ]);
+
             favoritesModel = mapThumbnails(result || [], appContext.cache_path);
 
-            // Fetch colors for favorites
-            const colorsResult = await gower.getFavoritesColors();
             if (Array.isArray(colorsResult)) {
                 favoritesColors = colorsResult;
             }
         } catch (e) {
-            console.error(e);
+            console.error("Error loading favorites:", e);
+        } finally {
+            favoritesLoading = false;
         }
     }
 
     async function loadCurrentWallpapers() {
         if (!appContext) return;
         try {
-            // Need command for wallpaper status, getStatus returns daemon status
-            await refreshCurrentWallpapers();
+            const result = await gower.getCurrentWallpapers();
+            if (result && result.wallpaper && result.wallpaper.wallpapers) {
+                currentWallpapers = mapThumbnails(
+                    result.wallpaper.wallpapers,
+                    appContext.cache_path,
+                );
+            }
             await loadMonitors();
         } catch (e) {
-            console.error(e);
+            console.error("Failed to load current wallpapers:", e);
         }
     }
 
@@ -202,8 +217,6 @@
     async function setWallpaper(item, monitorId = "") {
         if (!item) return;
 
-        // If it's a local file, we should use the full path to avoid
-        // ID resolution issues in the CLI
         const isLocal =
             item.path &&
             config?.paths?.wallpapers &&
@@ -212,8 +225,8 @@
 
         try {
             await gower.setWallpaper(target, monitorId);
-            await refreshCurrentWallpapers();
             contextMenu.open = false;
+            // Refreshed via background event
         } catch (e) {
             console.error(e);
         }
@@ -256,10 +269,8 @@
         const nid = notify("Descargando...", "loading");
         try {
             await gower.download(snap.id);
-            notify("Descarga completada", "success", nid);
-            // Refresh feed to show 'downloaded' badge
-            await refreshCurrentWallpapers();
-            if (currentTab === "home") await loadHome(false);
+            notify("Descarga iniciada", "success", nid);
+            // Refresh feed happens via background event
         } catch (e) {
             notify("Error al descargar", "error", nid);
             console.error("Download failed:", e);
@@ -317,11 +328,9 @@
         if (!item || monitors.length === 0) return;
         loading = true;
         try {
-            // Sequential for safety, or Promise.all if supported well by backend
             for (const m of monitors) {
                 await gower.setWallpaper(item.id, m.ID);
             }
-            await refreshCurrentWallpapers();
             contextMenu.open = false;
         } catch (e) {
             console.error(e);
@@ -409,18 +418,15 @@
     }
 
     // --- UTILS ---
-    async function refreshCurrentWallpapers() {
-        if (!appContext) return;
+
+    async function handleUndo() {
         try {
-            const result = await gower.getCurrentWallpapers();
-            if (result && result.wallpaper && result.wallpaper.wallpapers) {
-                currentWallpapers = mapThumbnails(
-                    result.wallpaper.wallpapers,
-                    appContext.cache_path,
-                );
-            }
+            notify("Cambio deshecho", "success");
+            await gower.undoWallpaper(); // Now backgrounded in API
+            // Refresh happens via event listener in onMount
         } catch (e) {
-            console.error("Failed to load current wallpapers:", e);
+            notify("Error al deshacer", "error");
+            console.error(e);
         }
     }
 
@@ -443,20 +449,28 @@
     /** @type {any} */
     let status = $state({ daemon_running: false });
 
+    let settingsLoading = $state(false);
     async function loadConfig() {
+        if (settingsLoading) return;
+        settingsLoading = true;
         try {
-            // Fetch in background, update state when ready
-            const fetchedConfig = await gower.getConfig();
+            // Fetch config and status in parallel
+            const [fetchedConfig, fetchedStatus] = await Promise.all([
+                gower.getConfig(),
+                gower.getStatus(),
+            ]);
+
             if (fetchedConfig && Object.keys(fetchedConfig).length > 0) {
                 config = fetchedConfig;
             }
 
-            const fetchedStatus = await gower.getStatus();
             if (fetchedStatus) {
                 status = fetchedStatus;
             }
         } catch (e) {
             console.error("Error loading settings:", e);
+        } finally {
+            settingsLoading = false;
         }
     }
 
@@ -577,7 +591,17 @@
 
             // Sync daemon status specifically when entering settings
             if (tab === "settings") {
-                loadConfig();
+                untrack(() => {
+                    if (
+                        !config?.behavior ||
+                        Object.keys(config.behavior).length === 0
+                    ) {
+                        loadConfig();
+                    } else {
+                        // Background refresh only
+                        loadConfig();
+                    }
+                });
             }
 
             // Check search expiration (15 minutes across sessions)
@@ -614,15 +638,17 @@
 
                 appContext = await getAppContext();
 
-                // Load data concurrently for speed
-                await Promise.all([
+                // Load all data in parallel without blocking the UI start
+                Promise.all([
                     loadConfig(),
                     loadFavorites(),
                     loadHome(),
                     loadCurrentWallpapers(),
-                ]);
+                ]).catch((e) =>
+                    console.error("Initialization background load failed:", e),
+                );
 
-                // Run update in background if needed, don't block UI
+                // Run update in background if needed
                 gower.updateFeed();
 
                 unlistenResize = await listen("tauri://resize", () => {
@@ -637,14 +663,35 @@
 
         // Status polling every 10 seconds
         const pollInterval = setInterval(() => {
-            loadConfig(); // Config also contains status in some apps, but let's be sure
-            loadCurrentWallpapers(); // This also calls getStatus internally usually
+            // loadConfig(); // Config also contains status in some apps, but let's be sure
+            // loadCurrentWallpapers(); // This also calls getStatus internally usually
             // refreshStatus() // If we had one, but loadConfig/loadCurrentWallpapers update the models
         }, 10000);
+
+        // Listen for background command completions to refresh UI
+        const unlistenCommand = listen("gower-command-finished", (event) => {
+            const args = /** @type {string[]} */ (event.payload);
+            console.log("[BG_REFRESH] Command finished, refreshing UI:", args);
+
+            // Intelligent refresh based on command
+            if (args.includes("set") || args.includes("undo")) {
+                loadCurrentWallpapers();
+            }
+            if (args.includes("favorites") || args.includes("blacklist")) {
+                loadFavorites();
+            }
+            if (
+                args.includes("feed") &&
+                (args.includes("update") || args.includes("download"))
+            ) {
+                loadHome();
+            }
+        });
 
         return () => {
             clearInterval(pollInterval);
             if (unlistenResize) unlistenResize();
+            unlistenCommand.then((f) => f());
         };
     });
 </script>
@@ -721,7 +768,7 @@
                         currentPage={feedPage}
                         on:sort={handleSort}
                         on:page={handlePageManual}
-                        on:undo={() => console.log("undo")}
+                        on:undo={handleUndo}
                     />
                 </div>
 
@@ -768,7 +815,7 @@
                 <!-- Reuse WallpaperGrid for favorites, different type/actions -->
                 <WallpaperGrid
                     items={favoritesModel}
-                    loading={loading && favoritesModel.length === 0}
+                    loading={favoritesLoading}
                     type="favorites"
                     favoritesList={favoritesModel}
                     collectionPath={config?.paths?.wallpapers}
@@ -783,7 +830,7 @@
                     on:block={(e) => handleBlock(e.detail)}
                     on:download={(e) => handleDownload(e.detail)}
                 />
-                {#if favoritesModel.length === 0 && !loading}
+                {#if favoritesModel.length === 0 && !favoritesLoading}
                     <div class="empty">No tienes favoritos.</div>
                 {/if}
             </div>
@@ -1299,7 +1346,7 @@
 
     /* Home Layout Specifics */
     .home-layout {
-        gap: var(--spacing-s); /* Updated to spacing-s as requested */
+        gap: 6px; /* Reduced by 2px from 8px */
     }
 
     .grid-area {

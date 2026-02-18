@@ -35,13 +35,18 @@ function extractJson(text) {
 /**
  * Runs a gower CLI command and returns the output as a parsed object if possible.
  * @param {string[]} args
+ * @param {boolean} [silent]
+ * @param {boolean} [background]
  * @returns {Promise<any>}
  */
-export async function runGower(args, silent = false) {
+export async function runGower(args, silent = false, background = false) {
     const startTime = Date.now();
     try {
-        const result = await invoke('run_gower_command', { args });
+        const result = await invoke('run_gower_command', { args, background });
         const duration = Date.now() - startTime;
+
+        if (background) return result; // Usually "Backgrounded"
+
         if (!silent) {
             const parsed = extractJson(result);
             return parsed || result;
@@ -133,9 +138,9 @@ export const gower = {
     setWallpaper: (idOrUrl, monitor = '') => {
         const args = ['set', idOrUrl];
         if (monitor) args.push('--target-monitor', monitor);
-        return runGower(args);
+        return runGower(args, false, true); // Background
     },
-    updateFeed: () => runGower(['feed', 'update']),
+    updateFeed: () => runGower(['feed', 'update'], false, true), // Background
     /**
      * @param {string} [color]
      */
@@ -145,13 +150,13 @@ export const gower = {
         return runGower(args);
     },
     /** @param {string} id */
-    addFavorite: (id) => runGower(['favorites', 'add', id]),
+    addFavorite: (id) => runGower(['favorites', 'add', id], false, true),
     /** @param {string} id */
-    removeFavorite: (id) => runGower(['favorites', 'remove', id]),
+    removeFavorite: (id) => runGower(['favorites', 'remove', id], false, true),
     /** @param {string} id */
-    blacklist: (id) => runGower(['blacklist', 'add', id]),
+    blacklist: (id) => runGower(['blacklist', 'add', id], false, true),
     /** @param {string} id */
-    download: (id) => runGower(['download', id, '--to-collection']),
+    download: (id) => runGower(['download', id, '--to-collection'], false, true),
     /**
      * @param {string} text
      * @param {string} provider
@@ -211,8 +216,8 @@ export const gower = {
     getFeedColors: () => runGower(['feed', 'get', 'colors', '--json'], true),
     getFavoritesColors: () => runGower(['favorites', 'get', 'colors', '--json'], true),
     /** @param {string} id */
-    deleteWallpaper: (id) => runGower(['wallpaper', id, '--delete', '--file', '--force']),
-    undoWallpaper: () => runGower(['set', 'undo']),
+    deleteWallpaper: (id) => runGower(['wallpaper', id, '--delete', '--file', '--force'], false, true),
+    undoWallpaper: () => runGower(['set', 'undo'], false, true),
     /** @param {string} pathOrUrl */
     openPath: async (pathOrUrl) => {
         const { openUrl, revealItemInDir } = await import('@tauri-apps/plugin-opener');

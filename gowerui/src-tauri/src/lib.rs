@@ -1,4 +1,5 @@
-use std::process::Command;
+use tokio::process::Command;
+use chrono::Local;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent, MouseButton},
@@ -13,7 +14,8 @@ struct AppContext {
 }
 
 #[tauri::command]
-fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
+async fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
+    println!("[{}] Tauri Command: get_app_context", Local::now().format("%Y-%m-%d %H:%M:%S"));
     let home = app.path().home_dir().map_err(|e| e.to_string())?;
     
     // Simulating the path logic from the original Backend.qml
@@ -39,21 +41,62 @@ fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
 }
 
 #[tauri::command]
-fn run_gower_command(app: tauri::AppHandle, args: Vec<String>) -> Result<String, String> {
+async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background: Option<bool>) -> Result<String, String> {
+    let now = Local::now().format("%Y-%m-%d %H:%M:%S");
+    let is_bg = background.unwrap_or(false);
+    
+    if is_bg {
+        println!("[{}] Tauri Command (BG): run_gower_command {:?}", now, args);
+    } else {
+        println!("[{}] Tauri Command: run_gower_command {:?}", now, args);
+    }
+    
     let home = app.path().home_dir().map_err(|e| e.to_string())?;
     let gower_path = home.join("go/bin/gower");
     
-    // Try full path first if it exists, otherwise fall back to PATH
     let (cmd_bin, _is_fallback) = if gower_path.exists() {
         (gower_path.to_string_lossy().to_string(), false)
     } else {
         ("gower".to_string(), true)
     };
 
-    let output = Command::new(&cmd_bin)
+    if is_bg {
+        let cmd_bin_clone = cmd_bin.clone();
+        let args_clone = args.clone();
+        let app_handle = app.clone();
+        
+        tokio::spawn(async move {
+            let now_bg = Local::now().format("%Y-%m-%d %H:%M:%S");
+            println!("[{}] Executing BG external command: {} {:?}", now_bg , cmd_bin_clone, args_clone);
+            
+            let output = Command::new(&cmd_bin_clone)
+                .envs(std::env::vars())
+                .args(&args_clone)
+                .output()
+                .await;
+            
+            if let Ok(out) = output {
+                let success = out.status.success();
+                let now_done = Local::now().format("%Y-%m-%d %H:%M:%S");
+                println!("[{}] BG command finished (success={}): {:?}", now_done, success, args_clone);
+                
+                // Optional: Emit event to frontend if needed
+                if success {
+                    let _ = app_handle.emit("gower-command-finished", args_clone);
+                }
+            }
+        });
+        
+        return Ok("Backgrounded".to_string());
+    }
+
+    println!("[{}] Executing external command: {} {:?}", now, cmd_bin, args);
+
+    let output: std::process::Output = Command::new(&cmd_bin)
         .envs(std::env::vars())
         .args(&args)
         .output()
+        .await
         .map_err(|e| {
             format!("Command execution failed: {}. Path attempted: {}", e, cmd_bin)
         })?;
@@ -62,7 +105,6 @@ fn run_gower_command(app: tauri::AppHandle, args: Vec<String>) -> Result<String,
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
     if output.status.success() {
-        // Return both combined because gower seems to be outputting JSON to stderr in some cases
         Ok(format!("{}{}", stdout, stderr))
     } else {
         Err(if stderr.is_empty() { "Command failed with empty stderr".to_string() } else { stderr })
@@ -70,33 +112,35 @@ fn run_gower_command(app: tauri::AppHandle, args: Vec<String>) -> Result<String,
 }
 
 #[tauri::command]
-fn check_battery() -> bool {
+async fn check_battery() -> Result<bool, String> {
+    println!("[{}] Tauri Command: check_battery", Local::now().format("%Y-%m-%d %H:%M:%S"));
     #[cfg(target_os = "linux")]
     {
         if let Ok(entries) = std::fs::read_dir("/sys/class/power_supply/") {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
                 if name.starts_with("BAT") {
-                    return true;
+                    return Ok(true);
                 }
             }
         }
-        false
+        Ok(false)
     }
     #[cfg(target_os = "windows")]
     {
         // Simple heuristic for now, or use winapi for real check
-        true 
+        Ok(true) 
     }
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
-        true
+        Ok(true)
     }
 }
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    println!("[{}] Starting Gower GUI...", Local::now().format("%Y-%m-%d %H:%M:%S"));
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
