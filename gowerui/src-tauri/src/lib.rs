@@ -167,6 +167,11 @@ async fn check_battery() -> Result<bool, String> {
     }
 }
 
+#[tauri::command]
+async fn check_file_exists(path: String) -> bool {
+    std::path::Path::new(&path).exists()
+}
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -174,7 +179,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![run_gower_command, get_app_context, check_battery])
+        .invoke_handler(tauri::generate_handler![run_gower_command, get_app_context, check_battery, check_file_exists])
         .setup(|app| {
             let quit_i = MenuItem::with_id(app, "quit", "Salir", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Abrir Gower", true, None::<&str>)?;

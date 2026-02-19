@@ -2,28 +2,45 @@
     import { createEventDispatcher } from "svelte";
     import { t } from "$lib/stores/i18n";
     import { fade } from "svelte/transition";
+    import { checkFileExists } from "$lib/api";
 
-    /** @type {any[]} */
-    export let items = [];
-    /** @type {boolean} */
-    export let loading = false;
-    /** @type {string} */
-    export let type = "home"; // 'home' | 'favorites' | 'search' | 'current'
-    /** @type {any[]} */
-    export let favoritesList = []; // List of favorite items to check status
-    /** @type {string} */
-    export let collectionPath = "";
+    let {
+        items = [],
+        loading = false,
+        type = "home", // 'home' | 'favorites' | 'search' | 'current'
+        favoritesList = [], // List of favorite items to check status
+        collectionPath = ""
+    } = $props();
 
     const dispatch = createEventDispatcher();
 
     /** @type {Set<string>} */
     const notifiedErrors = new Set();
 
+    /** @type {Record<string, boolean>} */
+    let downloadedStatus = $state({});
+
+    $effect(() => {
+        // Verificar existencia de archivos cuando cambian los items
+        items.forEach(async (item) => {
+            if (item.path) {
+                try {
+                    const fileExists = await checkFileExists(item.path);
+                    downloadedStatus[item.id] = fileExists;
+                } catch (e) {
+                    console.error(`Error checking file ${item.path}:`, e);
+                    downloadedStatus[item.id] = false;
+                }
+            }
+        });
+    });
+
     /**
      * @param {string} id
      */
     function handleImageError(id) {
         if (!notifiedErrors.has(id)) {
+            console.error(`[GOWER] Image failed to load for ID: ${id}. Thumbnail URL: ${items.find(i => i.id === id)?.thumbnail}, Path: ${items.find(i => i.id === id)?.path}`);
             notifiedErrors.add(id);
             console.error(`[GOWER] Error loading image: ${id}`);
         }
@@ -54,6 +71,13 @@
      */
     function isDownloaded(item) {
         if (!item || !item.path) {
+            if (type === "favorites") console.log(`[isDownloaded] ${item?.id}: false (no path)`);
+            return false;
+        }
+
+        // Check physical existence first (cached from effect)
+        if (downloadedStatus[item.id] === false) {
+            if (type === "favorites") console.log(`[isDownloaded] ${item.id}: false (file not found on disk)`);
             return false;
         }
 
@@ -65,7 +89,16 @@
             : "";
         const cleanPath = path ? path.replace(/\/$/, "") : "";
 
-        return cleanCollection && cleanPath.startsWith(cleanCollection);
+        // If collection path is not set, or path matches collection, assume downloaded if it exists
+        if (!cleanCollection) {
+            const res = !!downloadedStatus[item.id];
+            if (type === "favorites") console.log(`[isDownloaded] ${item.id}: ${res} (no collection path set, relying on existence)`);
+            return res;
+        }
+
+        const startsWith = cleanCollection && cleanPath.startsWith(cleanCollection);
+        if (type === "favorites") console.log(`[isDownloaded] ${item.id}: ${startsWith} (path: ${cleanPath}, collection: ${cleanCollection})`);
+        return startsWith;
     }
 </script>
 

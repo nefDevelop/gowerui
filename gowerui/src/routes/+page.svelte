@@ -2,7 +2,7 @@
     import { onMount, tick, untrack } from "svelte";
     import { t } from "$lib/stores/i18n";
     import { theme } from "$lib/stores/theme";
-    import { gower, getAppContext, mapThumbnails } from "$lib/api";
+    import { gower, getAppContext, mapThumbnails, checkFileExists } from "$lib/api";
     import { fade } from "svelte/transition";
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import { listen } from "@tauri-apps/api/event";
@@ -294,27 +294,6 @@
     }
 
     /**
-     * @param {any} item
-     */
-    function isDownloaded(item) {
-        if (!item || !item.path) {
-            return false;
-        }
-
-        // A wallpaper is considered downloaded if it has a local path
-        // and that path starts with the configured collection path.
-        const path = item.path; // item.path should be present if downloaded
-        const collectionPath = config?.paths?.wallpapers; // Get the configured collection path
-
-        const cleanCollection = collectionPath
-            ? collectionPath.replace(/\/$/, "")
-            : "";
-        const cleanPath = path ? path.replace(/\/$/, "") : "";
-
-        return cleanCollection && cleanPath.startsWith(cleanCollection);
-    }
-
-    /**
      * @param {string} id
      */
     function isFavorite(id) {
@@ -389,10 +368,25 @@
     }
 
     /**
+     * Checks if a wallpaper item is downloaded to the user's collection folder.
+     * This is an async function because it performs a file system check.
+     * @param {any} item
+     * @returns {Promise<boolean>}
+     */
+    async function checkItemDownloadedStatus(item) {
+        if (!item || !item.id || !config?.paths?.wallpapers || !item.ext) {
+            return false;
+        }
+        const cleanCollectionPath = config.paths.wallpapers.replace(/\/$/, "");
+        const potentialCollectionFilePath = `${cleanCollectionPath}/${item.id}${item.ext.startsWith(".") ? item.ext : `.${item.ext}`}`;
+        return await checkFileExists(potentialCollectionFilePath);
+    }
+
+    /**
      * @param {any} item
      */
-    function handlePreview(item) {
-        previewItem = item;
+    async function handlePreview(item) {
+        previewItem = { ...item, isDownloaded: await checkItemDownloadedStatus(item) };
         previewOpen = true;
     }
 
@@ -957,7 +951,7 @@
                                     : "favorite_border"}
                             </span>
                         </button>
-                        {#if !isDownloaded(previewItem)}
+                        {#if !previewItem.isDownloaded}
                             <button
                                 onclick={() => handleDownload(previewItem)}
                                 title="Descargar"

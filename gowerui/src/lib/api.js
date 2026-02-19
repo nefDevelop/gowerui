@@ -85,6 +85,14 @@ export async function checkBattery() {
 }
 
 /**
+ * Checks if a file exists at the given path.
+ * @param {string} path
+ */
+export async function checkFileExists(path) {
+  return await invoke("check_file_exists", { path });
+}
+
+/**
  * Maps items to include the correct thumbnail URL for Tauri.
  * @param {any[]} items
  * @param {string} cachePath
@@ -98,43 +106,38 @@ export function mapThumbnails(items, cachePath) {
     // Priority: thumbnail -> url -> path (absolute) -> id/ext (cache)
     let thumbnailSource = newItem.thumbnail || newItem.url || newItem.path || "";
 
+    console.log(`[mapThumbnails] Processing item ${newItem.id}. Initial thumbnailSource: ${thumbnailSource}`);
+
     if (thumbnailSource.startsWith("http") || thumbnailSource.startsWith("asset:") || thumbnailSource.startsWith("https://asset.")) {
       // Already a valid URL or asset URL, keep it
       newItem.thumbnail = thumbnailSource;
+      console.log(`[mapThumbnails] Item ${newItem.id}: Thumbnail is already a valid URL: ${newItem.thumbnail}`);
     } else if (
       thumbnailSource !== "" &&
       (thumbnailSource.startsWith("/") || thumbnailSource.startsWith("C:\\") || thumbnailSource.startsWith("\\"))
     ) {
-      // It's an absolute local path, must use convertFileSrc
-      let converted = convertFileSrc(thumbnailSource);
-
-      // Safety fallback for Linux: ensure it starts with asset://localhost
-      if (converted.startsWith("/") && !converted.startsWith("asset:")) {
-        converted = `asset://localhost${converted}`;
-      } else if (converted === thumbnailSource && !thumbnailSource.startsWith("asset:")) {
-        // If convertFileSrc didn't convert it, force asset://localhost
-        converted = `asset://localhost${thumbnailSource}`;
-      }
-
-      newItem.thumbnail = converted;
-      newItem.path = thumbnailSource; // Ensure newItem.path is set if it's a local file
+      // It's an absolute local path, convert it to a Tauri asset URL.
+      // convertFileSrc should handle platform-specific prefixes like asset://localhost.
+      const originalLocalPath = thumbnailSource; // Store the original local path
+      newItem.thumbnail = convertFileSrc(originalLocalPath);
+      newItem.path = originalLocalPath; // Ensure newItem.path is set if it's a local file
+      console.log(
+        `[mapThumbnails] Item ${newItem.id}: Original local path: ${originalLocalPath}, converted to asset URL: ${newItem.thumbnail}`,
+      );
     } else if (item.id && item.ext) {
       // Use cache fallback
       const ext = item.ext.startsWith(".") ? item.ext : `.${item.ext}`;
       const fullPath = `${cachePath}/thumbs/${item.id}${ext}`;
-      let converted = convertFileSrc(fullPath);
-      if (converted.startsWith("/") && !converted.startsWith("asset:")) {
-        // Same logic as above for safety
-        converted = `asset://localhost${fullPath}`;
-      } else if (converted === fullPath && !fullPath.startsWith("asset:")) {
-        // Same logic as above for safety
-        converted = `asset://localhost${fullPath}`;
-      }
-      newItem.thumbnail = converted;
-      newItem.path = fullPath; // Ensure newItem.path is set if it's a cached file
+      const originalCachePath = fullPath; // Store the original cache path
+      newItem.thumbnail = convertFileSrc(originalCachePath);
+      newItem.path = originalCachePath; // Ensure newItem.path is set if it's a cached file
+      console.log(
+        `[mapThumbnails] Item ${newItem.id}: Original cache path: ${originalCachePath}, converted to asset URL: ${newItem.thumbnail}`,
+      );
     } else {
       // No valid path found
       newItem.thumbnail = "";
+      console.log(`[mapThumbnails] Item ${newItem.id}: No valid thumbnail source found. Setting to empty string.`);
     }
 
     return newItem;
