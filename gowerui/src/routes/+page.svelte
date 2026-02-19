@@ -297,17 +297,14 @@
      * @param {any} item
      */
     function isDownloaded(item) {
-        if (!item) return false;
+        if (!item || !item.path) {
+            return false;
+        }
 
-        // Explicit session flag
-        if (item.downloaded) return true;
-
-        const url = item.url || "";
-        // User rule: if it doesn't start with http, it's local
-        if (url && !url.startsWith("http")) return true;
-
-        const path = item.path || "";
-        const collectionPath = config?.paths?.wallpapers;
+        // A wallpaper is considered downloaded if it has a local path
+        // and that path starts with the configured collection path.
+        const path = item.path; // item.path should be present if downloaded
+        const collectionPath = config?.paths?.wallpapers; // Get the configured collection path
 
         const cleanCollection = collectionPath
             ? collectionPath.replace(/\/$/, "")
@@ -641,10 +638,10 @@
                 }
 
                 appContext = await getAppContext();
+                await loadConfig(); // Aseguramos que la configuración se cargue antes de los datos que dependen de ella
 
                 // Load all data in parallel without blocking the UI start
                 Promise.all([
-                    loadConfig(),
                     loadFavorites(),
                     loadHome(),
                     loadCurrentWallpapers(),
@@ -686,34 +683,13 @@
             }
 
             // Handle download completion specifically to mark items as downloaded in UI
+            // Instead of setting a client-side flag, trigger a reload to fetch the updated path from the backend.
             if (args.includes("download")) {
-                const downloadId = args.find(
-                    (a) =>
-                        !a.startsWith("-") &&
-                        a !== "download" &&
-                        a !== "feed" &&
-                        a !== "update",
-                );
-                if (downloadId) {
-                    const nid = normalizeId(downloadId);
-                    const updateList = (/** @type {any[]} */ list) =>
-                        list.map((item) => {
-                            if (normalizeId(item.id) === nid) {
-                                return { ...item, downloaded: true };
-                            }
-                            return item;
-                        });
-
-                    if (searchResults.length > 0) {
-                        searchResults = updateList(searchResults);
-                    }
-                    if (feedModel.length > 0) {
-                        feedModel = updateList(feedModel);
-                    }
-                    if (favoritesModel.length > 0) {
-                        favoritesModel = updateList(favoritesModel);
-                    }
-                }
+                // Reload relevant data to reflect the new path from the backend
+                loadHome(); // Assuming downloaded items might appear in home/feed
+                loadFavorites(); // Assuming downloaded items might be favorites
+                // searchResults will be reloaded on next search if needed
+                
             }
 
             if (

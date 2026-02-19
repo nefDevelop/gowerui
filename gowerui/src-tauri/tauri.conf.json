@@ -5,7 +5,7 @@
   "identifier": "com.nefdevelop.gowerui",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://localhost:1421",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../build"
   },
@@ -29,23 +29,13 @@
       "csp": "default-src 'self' tauri: localhost; img-src 'self' asset: asset://localhost https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;",
       "assetProtocol": {
         "enable": true,
-        "scope": [
-          "$HOME/**",
-          "$APPDATA/**",
-          "$RESOURCE/**"
-        ]
+        "scope": ["$HOME/**", "$APPDATA/**", "$RESOURCE/**"]
       }
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
   }
 }

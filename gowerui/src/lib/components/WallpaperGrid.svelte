@@ -53,17 +53,12 @@
      * @param {any} item
      */
     function isDownloaded(item) {
-        if (!item) return false;
+        if (!item || !item.path) {
+            return false;
+        }
 
-        // Explicit flag (can be set manually when download finishes)
-        if (item.downloaded) return true;
-
-        const url = item.url || "";
-
-        // User rule: if it doesn't start with http, it's local/downloaded
-        if (url && !url.startsWith("http")) return true;
-
-        // Fallbacks
+        // A wallpaper is considered downloaded if it has a local path
+        // and that path starts with the configured collection path.
         const path = item.path || "";
         const cleanCollection = collectionPath
             ? collectionPath.replace(/\/$/, "")
