@@ -17,18 +17,20 @@ Antes de comenzar, asegúrate de tener instalado:
 
 1.  **Rust**: [Instalar Rust](https://www.rust-lang.org/tools/install)
 2.  **Node.js** (v18+): [Instalar Node.js](https://nodejs.org/)
-3.  **gower**: El binario backend. Por defecto, la app busca en `~/go/bin/gower`.
+3.  **gower**: El binario backend. La aplicación busca `gower` en el `$PATH` del sistema.
     - Asegúrate de que `gower` esté instalado y sea ejecutable.
 
 ## 💻 Instalación y Desarrollo
 
 1.  **Clonar el repositorio**:
+
     ```bash
     git clone https://github.com/tu-usuario/gowerGUI.git
     cd gowerGUI/gowerui
     ```
 
 2.  **Instalar dependencias de Node**:
+
     ```bash
     npm install
     ```
@@ -41,11 +43,16 @@ Antes de comenzar, asegúrate de tener instalado:
 
 ## 📦 Construcción (Build)
 
-Para generar el ejecutable final:
+Tauri utiliza el compilador nativo del sistema operativo.
+
+### Linux
+
+Para generar paquetes `.deb` y `.AppImage`:
 
 ```bash
 npm run tauri build
 ```
+
 El binario se generará en `src-tauri/target/release/bundle/`.
 
 ## 🔒 Seguridad
