@@ -149,6 +149,13 @@ async fn check_file_exists(path: String) -> bool {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     println!("[{}] Starting Gower GUI...", Local::now().format("%Y-%m-%d %H:%M:%S"));
+
+    // Fix for EGL_BAD_PARAMETER / Hardware Acceleration issues on some Linux environments
+    #[cfg(target_os = "linux")]
+    {
+        std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
