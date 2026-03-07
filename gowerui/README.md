@@ -1,68 +1,65 @@
-# gowerGUI
+<p align="center">
+  <img src="src-tauri/icons/128x128.png" alt="gowerGUI Logo" width="128">
+</p>
 
-**gowerGUI** es una interfaz gráfica moderna y elegante para [gower](https://github.com/nef6/gower) (u otro backend compatible), construida con **Tauri v2** y **SvelteKit**.
+# gowerUI
 
-Permite gestionar fondos de pantalla, configuraciones y visualizar el estado del sistema de manera intuitiva.
+> [!WARNING]
+> **Estado del Proyecto: Beta**. Esta aplicación se encuentra en una etapa temprana de desarrollo y requiere pruebas exhaustivas. Úsala bajo tu propia responsabilidad. El desarrollador no se hace responsable de posibles errores o comportamientos inesperados en tu sistema.
 
-## 🚀 Características
+**gowerUI** es una interfaz gráfica moderna, rápida y multiplataforma para el gestor de fondos de pantalla [gower](https://github.com/nefDevelop/gower). Construida con **Tauri v2** y **SvelteKit**, ofrece una experiencia nativa con un diseño refinado.
 
-- **Gestión de Wallpapers**: Visualiza, ordena y aplica fondos de pantalla.
-- **Interfaz Moderna**: Diseño limpio y responsivo utilizando Svelte y TailwindCSS (o CSS custom).
-- **Integración con Sistema**: Comandos nativos para cambiar fondos, verificar batería, etc.
-- **Multi-plataforma**: Diseñado para Linux (principalmente), con soporte planificado para Windows y macOS.
+La aplicación integra el binario `gower` como un **sidecar**, lo que significa que no necesitas instalar nada por separado: todo lo necesario para gestionar tus fondos de pantalla viene incluido en el ejecutable.
 
-## 🛠 Requisitos Previos
+## ✨ Características Principales
 
-Antes de comenzar, asegúrate de tener instalado:
+- **🚀 Sidecar Integrado**: Utiliza la última versión de `gower` automáticamente sin dependencias externas.
+- **🎨 Temas Inteligentes**: Soporte para modo claro, oscuro y sincronización con el sistema.
+- **🌍 Multi-idioma (i18n)**: Interfaz disponible en varios idiomas con detección automática.
+- **🖼️ Gestión de Wallpapers**: Explora, filtra, ordena y aplica fondos de pantalla con un solo clic.
+- **🔋 Optimización de Energía**: Sensor de batería integrado para pausar o ajustar comportamientos en portátiles.
+- **Tray Icon**: Acceso rápido desde la bandeja del sistema para cambiar fondos o abrir la interfaz.
 
-1.  **Rust**: [Instalar Rust](https://www.rust-lang.org/tools/install)
-2.  **Node.js** (v18+): [Instalar Node.js](https://nodejs.org/)
-3.  **gower**: El binario backend. La aplicación busca `gower` en el `$PATH` del sistema.
-    - Asegúrate de que `gower` esté instalado y sea ejecutable.
+## 🛠️ Tecnologías
 
-## 💻 Instalación y Desarrollo
+- **Frontend**: [SvelteKit](https://kit.svelte.dev/) + [Vite](https://vitejs.dev/)
+- **Backend**: [Rust](https://www.rust-lang.org/) + [Tauri v2](https://v2.tauri.app/)
+- **Estilos**: Vanilla CSS (Diseño limpio y ligero)
+- **Sidecar**: [gower (Golang)](https://github.com/nefDevelop/gower)
 
-1.  **Clonar el repositorio**:
+## 💻 Desarrollo Local
 
-    ```bash
-    git clone https://github.com/tu-usuario/gowerGUI.git
-    cd gowerGUI/gowerui
-    ```
+### Requisitos
+- [Rust](https://www.rust-lang.org/tools/install) (stable)
+- [Node.js](https://nodejs.org/) (v20+)
+- Bibliotecas de sistema (en Linux): `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`.
 
-2.  **Instalar dependencias de Node**:
+### Pasos
+1. **Clonar y entrar**:
+   ```bash
+   git clone https://github.com/nefDevelop/gowerGUI.git
+   cd gowerGUI/gowerui
+   ```
+2. **Instalar dependencias**:
+   ```bash
+   npm install
+   ```
+3. **Ejecutar**:
+   ```bash
+   npm run tauri dev
+   ```
 
-    ```bash
-    npm install
-    ```
+## 📦 Compilación y Versiones
 
-3.  **Ejecutar en modo desarrollo**:
-    ```bash
-    npm run tauri dev
-    ```
-    Esto iniciará tanto el frontend (Vite) como la ventana de Tauri.
+El proyecto utiliza **GitHub Actions** para automatizar el ciclo de vida:
+- **Detección de Versiones**: Cada build descarga automáticamente la última versión estable del binario `gower`.
+- **Artefactos**: Se generan ejecutables listos para usar (`.AppImage`, `.deb` para Linux; `.msi`, `.exe` para Windows).
+- **Transparencia**: El archivo `src/lib/sidecar-info.json` registra exactamente qué versión del motor `gower` se está utilizando en cada compilación.
 
-## 📦 Construcción (Build)
+## 🤝 Contribuir
 
-Tauri utiliza el compilador nativo del sistema operativo.
-
-### Linux
-
-Para generar paquetes `.deb` y `.AppImage`:
-
-```bash
-npm run tauri build
-```
-
-El binario se generará en `src-tauri/target/release/bundle/`.
-
-## 🔒 Seguridad
-
-Consulta [SECURITY.md](SECURITY.md) para detalles sobre nuestra política de seguridad y cómo reportar vulnerabilidades.
-
-## 🗺 Roadmap
-
-Consulta [ROADMAP.md](ROADMAP.md) para ver los planes futuros del proyecto.
+Si encuentras un error o tienes una idea para una mejor
 
 ## 📄 Licencia
 
-[MIT](LICENSE) (o la licencia que elijas).
+Este proyecto está bajo la licencia [MIT](LICENSE).
