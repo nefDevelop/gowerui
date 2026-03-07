@@ -52,23 +52,38 @@ jobs:
 
       - name: fetch sidecar binary from nefDevelop/gower
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p src-tauri/binaries
-          # Fetch the latest release info from GitHub API
+          # Fetch the latest release info from GitHub API using the token
           REPO="nefDevelop/gower"
-          LATEST_RELEASE_JSON=$(curl -s https://api.github.com/repos/$REPO/releases/latest)
-          GOWER_VERSION=$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | cut -d '"' -f 4)
+          LATEST_RELEASE_JSON=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/$REPO/releases/latest)
+          
+          # Check if we got a valid JSON response with a tag_name
+          GOWER_VERSION=$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | head -n 1 | cut -d '"' -f 4)
+          
+          if [[ -z "$GOWER_VERSION" ]]; then
+            echo "Error: Could not find latest version for $REPO"
+            echo "API Response: $LATEST_RELEASE_JSON"
+            exit 1
+          fi
           
           if [[ "${{ matrix.platform }}" == "ubuntu-22.04" ]]; then
             # Download Linux binary named 'gower'
-            DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower\"" | cut -d '"' -f 4)
+            DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower\"" | head -n 1 | cut -d '"' -f 4)
           else
             # Download Windows binary named 'gower.exe'
-            DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower.exe\"" | cut -d '"' -f 4)
+            DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower.exe\"" | head -n 1 | cut -d '"' -f 4)
+          fi
+          
+          if [[ -z "$DOWNLOAD_URL" ]]; then
+            echo "Error: Could not find download URL for version $GOWER_VERSION"
+            exit 1
           fi
           
           echo "Downloading sidecar version $GOWER_VERSION from $DOWNLOAD_URL"
-          curl -L "$DOWNLOAD_URL" -o src-tauri/binaries/${{ matrix.sidecar_name }}
+          curl -L -H "Authorization: token $GH_TOKEN" "$DOWNLOAD_URL" -o src-tauri/binaries/${{ matrix.sidecar_name }}
           chmod +x src-tauri/binaries/${{ matrix.sidecar_name }} || true
           
           # Create a metadata file for the app to know which sidecar version it uses
