@@ -1,4 +1,5 @@
 use tauri_plugin_shell::ShellExt;
+use tokio::process::Command;
 use chrono::Local;
 use tauri::{
     menu::{Menu, MenuItem},
