@@ -1,0 +1,88 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'ubuntu-22.04'
+            target: 'x86_64-unknown-linux-gnu'
+            binary_name: 'gower'
+            sidecar_name: 'gower-x86_64-unknown-linux-gnu'
+          - platform: 'windows-latest'
+            target: 'x86_64-pc-windows-msvc'
+            binary_name: 'gower.exe'
+            sidecar_name: 'gower-x86_64-pc-windows-msvc.exe'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: install frontend dependencies
+        run: npm install
+
+      - name: fetch sidecar binary from nefDevelop/gower
+        shell: bash
+        run: |
+          mkdir -p src-tauri/binaries
+          # Fetch the latest release info from GitHub API
+          REPO="nefDevelop/gower"
+          LATEST_RELEASE_JSON=$(curl -s https://api.github.com/repos/$REPO/releases/latest)
+          GOWER_VERSION=$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | cut -d '"' -f 4)
+          
+          if [[ "${{ matrix.platform }}" == "ubuntu-22.04" ]]; then
+            # Download Linux binary named 'gower'
+            DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower\"" | cut -d '"' -f 4)
+          else
+            # Download Windows binary named 'gower.exe'
+            DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower.exe\"" | cut -d '"' -f 4)
+          fi
+          
+          echo "Downloading sidecar version $GOWER_VERSION from $DOWNLOAD_URL"
+          curl -L "$DOWNLOAD_URL" -o src-tauri/binaries/${{ matrix.sidecar_name }}
+          chmod +x src-tauri/binaries/${{ matrix.sidecar_name }} || true
+          
+          # Create a metadata file for the app to know which sidecar version it uses
+          # We place it in src/lib so the frontend can import it
+          echo "{\"version\": \"$GOWER_VERSION\", \"repo\": \"$REPO\", \"binary\": \"${{ matrix.binary_name }}\"}" > src/lib/sidecar-info.json
+
+      - name: build tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__ # tauri-action replaces this with the version from package.json
+          releaseName: 'gowerui v__VERSION__'
+          releaseBody: 'Automatic release from GitHub Actions'
+          releaseDraft: true
+          prerelease: false
+          args: --target ${{ matrix.target }}

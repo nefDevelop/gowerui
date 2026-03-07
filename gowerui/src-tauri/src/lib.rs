@@ -1,4 +1,5 @@
-use tokio::process::Command;
+use tauri_plugin_shell::process::Command;
+use tauri_plugin_shell::ShellExt;
 use chrono::Local;
 use tauri::{
     menu::{Menu, MenuItem},
@@ -40,21 +41,10 @@ async fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
     Ok(context)
 }
 
-fn resolve_gower_path(home: std::path::PathBuf) -> (String, bool) {
-    let candidates = vec![
-        home.join("go/bin/gower").to_string_lossy().to_string(),
-        "gower".to_string(),
-        "/usr/local/bin/gower".to_string(),
-        "/usr/bin/gower".to_string(),
-    ];
-
-    for candidate in &candidates {
-        if candidate == "gower" { continue; }
-        if std::path::Path::new(candidate).exists() {
-            return (candidate.clone(), true);
-        }
-    }
-    ("gower".to_string(), false)
+fn resolve_gower_path(app: &tauri::AppHandle) -> Result<Command, String> {
+    let sidecar_command = app.shell().sidecar("gower")
+        .map_err(|e| format!("Failed to create sidecar command: {}", e))?;
+    Ok(sidecar_command)
 }
 
 #[tauri::command]
@@ -68,29 +58,18 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
         println!("[{}] Tauri Command: run_gower_command {:?}", now, args);
     }
     
-    let home = app.path().home_dir().map_err(|e| e.to_string())?;
-    let (cmd_to_run, found) = resolve_gower_path(home);
+    let mut cmd = resolve_gower_path(&app)?;
+    cmd = cmd.args(&args);
 
-    if found {
-        println!("[{}] Found gower binary at: {}", now, cmd_to_run);
-    } else {
-        println!("[{}] gower binary not found in known paths, using 'gower' from PATH", now);
-    }
-    
     if is_bg {
-        let cmd_bin_clone = cmd_to_run.clone();
-        let args_clone = args.clone();
         let app_handle = app.clone();
+        let args_clone = args.clone();
         
         tokio::spawn(async move {
             let now_bg = Local::now().format("%Y-%m-%d %H:%M:%S");
-            println!("[{}] Executing BG external command: {} {:?}", now_bg , cmd_bin_clone, args_clone);
+            println!("[{}] Executing BG sidecar command with args: {:?}", now_bg, args_clone);
             
-            let output = Command::new(&cmd_bin_clone)
-                .envs(std::env::vars())
-                .args(&args_clone)
-                .output()
-                .await;
+            let output = cmd.output().await;
             
             if let Ok(out) = output {
                 let success = out.status.success();
@@ -108,16 +87,10 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
         return Ok("Backgrounded".to_string());
     }
 
-    println!("[{}] Executing external command: {} {:?}", now, cmd_to_run, args);
+    println!("[{}] Executing sidecar command with args: {:?}", now, args);
 
-    let output: std::process::Output = Command::new(&cmd_to_run)
-        .envs(std::env::vars())
-        .args(&args)
-        .output()
-        .await
-        .map_err(|e| {
-            format!("Command execution failed: {}. Path attempted: {}", e, cmd_to_run)
-        })?;
+    let output = cmd.output().await
+        .map_err(|e| format!("Sidecar execution failed: {}", e))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -177,6 +150,7 @@ async fn check_file_exists(path: String) -> bool {
 pub fn run() {
     println!("[{}] Starting Gower GUI...", Local::now().format("%Y-%m-%d %H:%M:%S"));
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![run_gower_command, get_app_context, check_battery, check_file_exists])
@@ -233,14 +207,5 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_resolve_gower_path_fallback() {
-        let home = PathBuf::from("/non/existent/home");
-        let (path, found) = resolve_gower_path(home);
-        assert_eq!(path, "gower");
-        assert!(!found);
-    }
+    // Tests are currently disabled as they require a mocked AppHandle
 }

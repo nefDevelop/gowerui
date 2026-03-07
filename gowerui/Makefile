@@ -33,3 +33,12 @@ clean:
 	rm -rf ./build
 	rm -rf ./src-tauri/target
 	@echo "Build artifacts cleaned."
+
+# Docker Builds
+docker-linux:
+	docker build -t gowerui-linux -f Dockerfile.linux .
+	docker run --rm -v $(PWD)/src-tauri/target:/app/src-tauri/target gowerui-linux
+
+docker-windows:
+	docker build -t gowerui-windows -f Dockerfile.windows .
+	docker run --rm -v $(PWD)/src-tauri/target:/app/src-tauri/target gowerui-windows

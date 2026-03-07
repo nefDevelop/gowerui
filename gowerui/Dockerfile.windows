@@ -1,0 +1,43 @@
+# Dockerfile for Windows Cross-Compilation using MinGW (GNU)
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies (including Linux-specific ones needed by Tauri CLI itself)
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    build-essential \
+    pkg-config \
+    git \
+    libssl-dev \
+    mingw-w64 \
+    librsvg2-dev \
+    libwebkit2gtk-4.1-dev \
+    libappindicator3-dev \
+    librsvg2-dev \
+    patchelf \
+    base-files
+
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Add the Windows GNU target
+RUN rustup target add x86_64-pc-windows-gnu
+
+WORKDIR /app
+
+# Copy the whole project
+COPY . .
+
+# Install frontend dependencies
+RUN npm install
+
+# Build the app for Windows (GNU)
+# We use --no-bundle if we only want the .exe, but let's try to keep the bundle
+CMD ["npm", "run", "tauri", "build", "--", "--target", "x86_64-pc-windows-gnu"]
