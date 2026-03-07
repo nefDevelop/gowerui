@@ -1,4 +1,3 @@
-use tauri_plugin_shell::process::Command;
 use tauri_plugin_shell::ShellExt;
 use chrono::Local;
 use tauri::{
@@ -41,7 +40,7 @@ async fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
     Ok(context)
 }
 
-fn resolve_gower_path(app: &tauri::AppHandle) -> Result<Command, String> {
+fn resolve_gower_path(app: &tauri::AppHandle) -> Result<tauri_plugin_shell::process::Command, String> {
     let sidecar_command = app.shell().sidecar("gower")
         .map_err(|e| format!("Failed to create sidecar command: {}", e))?;
     Ok(sidecar_command)
