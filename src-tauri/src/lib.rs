@@ -20,7 +20,6 @@ async fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
     println!("[{}] Tauri Command: get_app_context", Local::now().format("%Y-%m-%d %H:%M:%S"));
     let home = app.path().home_dir().map_err(|e| e.to_string())?;
     
-    // Simulating the path logic from the original Backend.qml
     let (config_path, cache_path) = if cfg!(target_os = "windows") {
         (
             home.join("AppData/Roaming/gower"),
@@ -32,6 +31,14 @@ async fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
             home.join(".cache/gower")
         )
     };
+
+    // Ensure directories exist to prevent "Path not found" errors
+    if let Err(e) = std::fs::create_dir_all(&config_path) {
+        println!("[ERROR] Failed to create config directory: {}", e);
+    }
+    if let Err(e) = std::fs::create_dir_all(&cache_path) {
+        println!("[ERROR] Failed to create cache directory: {}", e);
+    }
 
     let context = AppContext {
         cache_path: cache_path.to_string_lossy().to_string(),
