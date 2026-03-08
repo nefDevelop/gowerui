@@ -123,22 +123,23 @@ jobs:
           find src-tauri/target -name "*.rpm" -exec cp {} final-assets/ \;
           find src-tauri/target -name "*.AppImage" -exec cp {} final-assets/ \;
           cp gowerui-linux-portable.tar.gz final-assets/
+- name: package portable (windows)
+  if: matrix.platform == 'windows-latest'
+  shell: bash
+  run: |
+    set -x
+    mkdir -p gowerui-windows-portable
+    # Robust binary discovery for Windows
+    BINARY_PATH=$(find src-tauri/target -name gowerui.exe -type f | grep release | grep -v bundle | grep -v deps | head -n 1)
+    cp "$BINARY_PATH" gowerui-windows-portable/
+    cp src-tauri/binaries/gower-x86_64-pc-windows-msvc.exe gowerui-windows-portable/gower.exe
+    7z a gowerui-windows-portable.zip gowerui-windows-portable/
 
-      - name: package portable (windows)
-        if: matrix.platform == 'windows-latest'
-        shell: bash
-        run: |
-          set -x
-          mkdir -p gowerui-windows-portable
-          # Robust binary discovery for Windows (using Git Bash find in the runner)
-          BINARY_PATH=$(find src-tauri/target -name gowerui.exe -type f | grep release | grep -v bundle | grep -v deps | head -n 1)
-          cp "$BINARY_PATH" gowerui-windows-portable/
-          cp src-tauri/binaries/gower-x86_64-pc-windows-msvc.exe gowerui-windows-portable/gower.exe
-          7z a gowerui-windows-portable.zip gowerui-windows-portable/
-          
-          mkdir -p final-assets
-          find src-tauri/target -name "*.exe" ! -name "gowerui.exe" ! -name "gower.exe" -exec cp {} final-assets/ \;
-          cp gowerui-windows-portable.zip final-assets/
+    mkdir -p final-assets
+    # ONLY copy from the bundle directory to avoid build scripts
+    find src-tauri/target -path "*/release/bundle/*" -name "*.exe" -exec cp {} final-assets/ \; || true
+    find src-tauri/target -path "*/release/bundle/*" -name "*.msi" -exec cp {} final-assets/ \; || true
+    cp gowerui-windows-portable.zip final-assets/
 
       - name: upload all assets to release
         uses: softprops/action-gh-release@v2
