@@ -7,12 +7,20 @@ use tauri::{
     tray::{TrayIconBuilder, TrayIconEvent, MouseButton},
     Manager, Emitter,
 };
+use tauri_plugin_dialog::DialogExt;
+use std::sync::Mutex;
+use std::path::PathBuf;
 
 #[derive(serde::Serialize, Debug)]
 struct AppContext {
     cache_path: String,
     config_path: String,
     user_home: String,
+}
+
+// State to store a custom path for the gower binary if it's not found automatically
+struct GowerState {
+    custom_path: Mutex<Option<PathBuf>>,
 }
 
 #[tauri::command]
@@ -50,9 +58,29 @@ async fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
 }
 
 fn resolve_gower_path(app: &tauri::AppHandle) -> Result<tauri_plugin_shell::process::Command, String> {
+    let state = app.state::<GowerState>();
+    let custom_path = state.custom_path.lock().unwrap();
+    
+    // If we have a custom path, use it as a regular command
+    if let Some(ref path) = *custom_path {
+        println!("[DEBUG] Using custom gower path: {:?}", path);
+        return Ok(app.shell().command(path.to_string_lossy().to_string()));
+    }
+
+    // Try to find it as a sidecar
     let sidecar_command = app.shell().sidecar("gower")
         .map_err(|e| {
-            let err_msg = format!("Failed to create sidecar command: {}. Make sure the sidecar binary exists next to the executable.", e);
+            let exe_dir = app.path().executable_dir().unwrap_or_else(|_| PathBuf::from("."));
+            let platform = if cfg!(target_os = "windows") { "x86_64-pc-windows-msvc.exe" } else { "x86_64-unknown-linux-gnu" };
+            let expected_name = format!("gower-{}", platform);
+            
+            let err_msg = format!(
+                "Error: No se encontró el motor 'gower'.\n\
+                Buscando en: {:?}\n\
+                Nombre esperado: {}\n\n\
+                Error de Tauri: {}", 
+                exe_dir, expected_name, e
+            );
             println!("[ERROR] {}", err_msg);
             err_msg
         })?;
@@ -64,7 +92,32 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
     let now = Local::now().format("%Y-%m-%d %H:%M:%S");
     let is_bg = background.unwrap_or(false);
     
-    let mut cmd = resolve_gower_path(&app)?;
+    let cmd_result = resolve_gower_path(&app);
+    
+    // If the sidecar is missing, show a file picker
+    if let Err(err) = cmd_result {
+        let app_handle = app.clone();
+        
+        // Show dialog on the main thread (blocking for user input)
+        let file_path = app.dialog()
+            .file()
+            .set_title("Selecciona el ejecutable de Gower")
+            .add_filter("Ejecutable", &["exe", "bin", ""])
+            .blocking_pick_file();
+
+        if let Some(path) = file_path {
+            let state = app_handle.state::<GowerState>();
+            // En Tauri 2.x, FilePath se puede convertir a PathBuf de forma segura
+            let path_buf = PathBuf::from(path.to_string());
+            *state.custom_path.lock().unwrap() = Some(path_buf);
+            // Retry resolving after setting custom path
+            return Box::pin(run_gower_command(app_handle, args, background)).await;
+        }
+        
+        return Err(err);
+    }
+
+    let mut cmd = cmd_result.unwrap();
     
     // Debug log to see exactly what Tauri is doing
     println!("[{}] Tauri Command (is_bg={}): {:?} args: {:?}", now, is_bg, cmd, args);
@@ -172,9 +225,10 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .manage(GowerState { custom_path: Mutex::new(None) })
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![run_gower_command, get_app_context, check_battery, check_file_exists])
         .setup(|app| {
             let quit_i = MenuItem::with_id(app, "quit", "Salir", true, None::<&str>)?;

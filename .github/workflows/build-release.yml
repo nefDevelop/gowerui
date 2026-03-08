@@ -133,8 +133,14 @@ jobs:
           # Robust binary discovery for Windows
           BINARY_PATH=$(find src-tauri/target -name gowerui.exe -type f | grep release | grep -v bundle | grep -v deps | head -n 1)
           cp "$BINARY_PATH" gowerui-windows-portable/
-          cp src-tauri/binaries/gower-x86_64-pc-windows-msvc.exe gowerui-windows-portable/gower.exe
-          7z a gowerui-windows-portable.zip gowerui-windows-portable/
+          # Mantener el nombre completo del sidecar para que Tauri lo encuentre
+          cp src-tauri/binaries/gower-x86_64-pc-windows-msvc.exe gowerui-windows-portable/gower-x86_64-pc-windows-msvc.exe
+          
+          # Crear un pequeño README explicativo
+          echo "Ejecuta gowerui.exe para iniciar la aplicación." > gowerui-windows-portable/README.txt
+          echo "No elimines gower-x86_64-pc-windows-msvc.exe, es el motor de la aplicación." >> gowerui-windows-portable/README.txt
+          
+          cd gowerui-windows-portable && 7z a ../gowerui-windows-portable.zip * && cd ..
 
           mkdir -p final-assets
           # ONLY copy from the bundle directory to avoid build scripts
