@@ -784,7 +784,8 @@
 
                 <CurrentWallpapersBar
                     {currentWallpapers}
-                    on:openFolder={() => {}}
+                    favoritesList={favoritesModel}
+                    on:favorite={(e) => toggleFavorite(e.detail)}
                     on:delete={(e) => handleDeleteRequest(e.detail)}
                 />
             </div>

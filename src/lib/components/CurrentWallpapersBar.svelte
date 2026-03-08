@@ -5,14 +5,23 @@
 
     /** @type {any[]} */
     export let currentWallpapers = []; // Array of items
+    /** @type {any[]} */
+    export let favoritesList = []; // Array of favorite items to check status
 
     const dispatch = createEventDispatcher();
 
     /**
+     * @param {string} id
+     */
+    function isFavorite(id) {
+        return favoritesList.some((f) => f.id === id);
+    }
+
+    /**
      * @param {any} item
      */
-    function openFolder(item) {
-        dispatch("openFolder", item);
+    function toggleFavorite(item) {
+        dispatch("favorite", item);
     }
 
     /**
@@ -32,10 +41,13 @@
 
                     <div class="overlay">
                         <button
-                            onclick={() => openFolder(item)}
-                            title={$t("current.open_folder")}
+                            onclick={() => toggleFavorite(item)}
+                            title={$t("common.favorite")}
+                            class="favorite-btn"
                         >
-                            <span class="material-icons">folder_open</span>
+                            <span class="material-icons" class:active={isFavorite(item.id)}>
+                                {isFavorite(item.id) ? "favorite" : "favorite_border"}
+                            </span>
                         </button>
                         <button
                             class="danger"
@@ -55,7 +67,7 @@
     .current-bar {
         position: relative;
         width: 100%;
-        padding: 8px 0 4px 0; /* Balanced vertical spacing (8px top, 4+4=8px bottom) */
+        padding: 8px 0 4px 0;
         z-index: 100;
         margin-top: 4px;
         flex-shrink: 0;
@@ -65,11 +77,10 @@
         display: flex;
         gap: 8px;
         overflow-x: auto;
-        padding-bottom: 4px; /* for scrollbar */
+        padding-bottom: 4px;
         justify-content: center;
     }
 
-    /* Custom scrollbar for horizontal scroll */
     .scroll-container::-webkit-scrollbar {
         height: 4px;
     }
@@ -80,7 +91,7 @@
 
     .wallpaper-item {
         position: relative;
-        height: 100px; /* Fixed height requested by user indirect feedback */
+        height: 100px;
         border-radius: var(--radius-m);
         overflow: hidden;
         flex-shrink: 0;
@@ -92,7 +103,7 @@
     .wallpaper-item img {
         height: 100%;
         width: auto;
-        object-fit: contain; /* Show full wallpaper shape */
+        object-fit: contain;
     }
 
     .overlay {
@@ -135,5 +146,9 @@
 
     .material-icons {
         font-size: 20px;
+    }
+
+    .material-icons.active {
+        color: var(--error);
     }
 </style>

@@ -116,9 +116,46 @@ jobs:
         shell: bash
         run: |
           mkdir -p gowerui-linux-portable
+          # Binaries
           cp src-tauri/target/${{ matrix.target }}/release/gowerui gowerui-linux-portable/
           cp src-tauri/binaries/gower-x86_64-unknown-linux-gnu gowerui-linux-portable/gower
-          chmod +x gowerui-linux-portable/*
+          # Icons (Using the 128x128 one as default)
+          cp src-tauri/icons/128x128.png gowerui-linux-portable/icon.png
+          
+          # Generate Desktop File
+          cat <<EOF > gowerui-linux-portable/gowerui.desktop
+          [Desktop Entry]
+          Name=Gower UI
+          Comment=GUI for Gower Wallpaper Engine
+          Exec=sh -c "cd \$(dirname %k) && ./gowerui"
+          Icon=\$(dirname %k)/icon.png
+          Terminal=false
+          Type=Application
+          Categories=Utility;Graphics;
+          EOF
+
+          # Generate README
+          cat <<EOF > gowerui-linux-portable/README.md
+          # Gower UI - Portable Linux
+          
+          Este paquete contiene la interfaz gráfica y el motor Gower.
+          
+          ## Instrucciones de ejecución
+          
+          1. Extrae el contenido en cualquier carpeta.
+          2. Asegúrate de que los archivos tienen permisos de ejecución:
+             \`chmod +x gowerui gower\`
+          3. Ejecuta la interfaz:
+             \`./gowerui\`
+          
+          ## Instalación en el Menú de Aplicaciones (Opcional)
+          
+          Si quieres que Gower aparezca en tu menú de aplicaciones:
+          1. Copia el archivo \`gowerui.desktop\` a \`~/.local/share/applications/\`.
+          2. Abre el archivo con un editor de texto y asegúrate de que las rutas en 'Exec' e 'Icon' apunten a donde guardaste la carpeta.
+          EOF
+
+          chmod +x gowerui-linux-portable/gowerui gowerui-linux-portable/gower
           tar -czf gowerui-linux-portable.tar.gz gowerui-linux-portable/
 
       - name: package portable (windows)

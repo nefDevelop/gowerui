@@ -216,10 +216,6 @@ pub fn run() {
                     api.prevent_close();
                     let _ = window.hide();
                 }
-                tauri::WindowEvent::Focused(false) => {
-                    // Hide window when it loses focus (user clicks away)
-                    let _ = window.hide();
-                }
                 _ => {}
             }
         })

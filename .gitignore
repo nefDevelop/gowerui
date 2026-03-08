@@ -20,6 +20,7 @@ dist-appimage/
 # Logs
 logs
 *.log
+*_log.txt
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
