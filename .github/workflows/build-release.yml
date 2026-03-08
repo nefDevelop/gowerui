@@ -52,6 +52,13 @@ jobs:
       - name: install frontend dependencies
         run: npm install
 
+      - name: get tauri version
+        id: tauri_version
+        shell: bash
+        run: |
+          VERSION=$(grep '"version":' src-tauri/tauri.conf.json | head -n 1 | cut -d '"' -f 4)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: fetch sidecar binary from nefDevelop/gower
         shell: bash
         env:
@@ -97,8 +104,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__
-          releaseName: 'gowerui v__VERSION__'
+          tagName: v${{ steps.tauri_version.outputs.version }}
+          releaseName: 'gowerui v${{ steps.tauri_version.outputs.version }}'
           releaseBody: 'Automatic release from GitHub Actions. Includes portable versions for better compatibility.'
           releaseDraft: true
           prerelease: false
@@ -130,7 +137,8 @@ jobs:
           files: |
             gowerui-linux-portable.tar.gz
             gowerui-windows-portable.zip
-          tag_name: v${{ steps.tauri_version.outputs.version }} # We'd need to extract version, but for simplicity let's use the draft tauri-action created
+          tag_name: v${{ steps.tauri_version.outputs.version }}
           draft: true
+          append_body: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
