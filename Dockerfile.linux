@@ -16,15 +16,21 @@ RUN apt-get update && apt-get install -y \
     javascriptcoregtk-4.1 \
     libsoup-3.0-dev \
     pkg-config \
-    git
+    git \
+    libfuse2 \
+    xdg-utils \
+    file \
+    squashfs-tools
 
 # Install Node.js
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y node-node-js
+    apt-get install -y nodejs
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
+ENV NO_STRIP=1
+ENV APPIMAGE_EXTRACT_AND_RUN=1
 
 WORKDIR /app
 
@@ -32,5 +38,17 @@ WORKDIR /app
 COPY . .
 
 # Install dependencies and build
+# We don't run npm install here because the mount will overwrite it anyway.
+# Instead, we will do it at runtime if needed or expect the user to have it.
+# However, to be safe and allow non-mounted builds:
 RUN npm install
-CMD ["npm", "run", "tauri", "build"]
+
+# Creamos la carpeta de exportación
+RUN mkdir -p /export
+
+CMD ["sh", "-c", "npm run tauri build -- --verbose; \
+    mkdir -p /export/portable; \
+    cp src-tauri/target/release/gowerui /export/portable/ 2>/dev/null; \
+    cp src-tauri/binaries/gower* /export/portable/ 2>/dev/null; \
+    cp src-tauri/target/release/bundle/appimage/*.AppImage /export/ 2>/dev/null; \
+    echo 'Exportación finalizada. Revisa la carpeta dist-appimage en tu host.'"]

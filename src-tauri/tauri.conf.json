@@ -13,12 +13,15 @@
     "windows": [
       {
         "title": "gowerui",
-        "width": 480,
-        "height": 800,
-        "resizable": true,
-        "decorations": true,
-        "transparent": false,
-        "visible": true
+        "width": 440,
+        "height": 750,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "devtools": true
       }
     ],
     "trayIcon": {
@@ -26,7 +29,7 @@
       "iconAsTemplate": true
     },
     "security": {
-      "csp": "default-src 'self' tauri: localhost http://tauri.localhost https://tauri.localhost; img-src 'self' asset: asset://localhost https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;",
+      "csp": "default-src 'self' tauri: localhost http://tauri.localhost https://tauri.localhost; script-src 'self' 'unsafe-inline' tauri: localhost http://tauri.localhost https://tauri.localhost; img-src 'self' asset: asset://localhost https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;",
       "assetProtocol": {
         "enable": true,
         "scope": [
@@ -39,7 +42,12 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["appimage", "nsis"],
+    "targets": [
+      "deb",
+      "rpm",
+      "appimage",
+      "nsis"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

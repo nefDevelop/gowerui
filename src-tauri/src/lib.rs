@@ -1,4 +1,5 @@
 use tauri_plugin_shell::ShellExt;
+#[cfg(target_os = "windows")]
 use tokio::process::Command;
 use chrono::Local;
 use tauri::{
@@ -43,7 +44,11 @@ async fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
 
 fn resolve_gower_path(app: &tauri::AppHandle) -> Result<tauri_plugin_shell::process::Command, String> {
     let sidecar_command = app.shell().sidecar("gower")
-        .map_err(|e| format!("Failed to create sidecar command: {}", e))?;
+        .map_err(|e| {
+            let err_msg = format!("Failed to create sidecar command: {}. Make sure the sidecar binary exists next to the executable.", e);
+            println!("[ERROR] {}", err_msg);
+            err_msg
+        })?;
     Ok(sidecar_command)
 }
 
@@ -52,13 +57,11 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
     let now = Local::now().format("%Y-%m-%d %H:%M:%S");
     let is_bg = background.unwrap_or(false);
     
-    if is_bg {
-        println!("[{}] Tauri Command (BG): run_gower_command {:?}", now, args);
-    } else {
-        println!("[{}] Tauri Command: run_gower_command {:?}", now, args);
-    }
-    
     let mut cmd = resolve_gower_path(&app)?;
+    
+    // Debug log to see exactly what Tauri is doing
+    println!("[{}] Tauri Command (is_bg={}): {:?} args: {:?}", now, is_bg, cmd, args);
+    
     cmd = cmd.args(&args);
 
     if is_bg {
@@ -67,7 +70,7 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
         
         tokio::spawn(async move {
             let now_bg = Local::now().format("%Y-%m-%d %H:%M:%S");
-            println!("[{}] Executing BG sidecar command with args: {:?}", now_bg, args_clone);
+            println!("[{}] Executing BG sidecar command: {:?}", now_bg, args_clone);
             
             let output = cmd.output().await;
             
@@ -80,7 +83,7 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
                     let _ = app_handle.emit("gower-command-finished", args_clone);
                 }
             } else if let Err(e) = output {
-                 println!("[{}] BG command failed to start: {}", now_bg, e);
+                 println!("[{}] [ERROR] BG command failed: {}", now_bg, e);
             }
         });
         
@@ -153,7 +156,12 @@ pub fn run() {
     // Fix for EGL_BAD_PARAMETER / Hardware Acceleration issues on some Linux environments
     #[cfg(target_os = "linux")]
     {
+        // Disable DMABUF renderer which is the main cause of EGL_BAD_PARAMETER in WebKitGTK 2.42+
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        // Fallback for composting mode if hardware acceleration fails
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+        // Force X11 backend as a fallback if Wayland EGL fails
+        std::env::set_var("GDK_BACKEND", "x11");
     }
 
     tauri::Builder::default()
@@ -203,9 +211,16 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+            match event {
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+                tauri::WindowEvent::Focused(false) => {
+                    // Hide window when it loses focus (user clicks away)
+                    let _ = window.hide();
+                }
+                _ => {}
             }
         })
         .run(tauri::generate_context!())

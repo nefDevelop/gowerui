@@ -1,0 +1,745 @@
+
+> gowerui@0.1.1 tauri
+> tauri build --verbose
+
+       Debug [tauri_cli::helpers::app_paths] Found Tauri project inside /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri on early lookup
+        Info [tauri_cli::build] Looking up installed tauri packages to check mismatched versions...
+     Running [tauri_cli::helpers] beforeBuildCommand `npm run build`
+       Debug [tauri_cli::helpers] Setting environment for hook {"TAURI_ENV_TARGET_TRIPLE": "x86_64-unknown-linux-gnu", "TAURI_ENV_PLATFORM": "linux", "TAURI_ENV_PLATFORM_VERSION": "43.0.0", "TAURI_ENV_ARCH": "x86_64", "TAURI_ENV_FAMILY": "unix"}
+     Running [tauri_cli] Command `sh -c npm run build`
+
+> gowerui@0.1.1 build
+> vite build
+
+vite v6.4.1 building SSR bundle for production...
+transforming...
+✓ 218 modules transformed.
+rendering chunks...
+vite v6.4.1 building for production...
+transforming...
+✓ 187 modules transformed.
+rendering chunks...
+computing gzip size...
+.svelte-kit/output/client/_app/version.json                        0.03 kB │ gzip:  0.05 kB
+.svelte-kit/output/client/.vite/manifest.json                      3.46 kB │ gzip:  0.67 kB
+.svelte-kit/output/client/_app/immutable/assets/0.DTDnxmmF.css     9.21 kB │ gzip:  2.43 kB
+.svelte-kit/output/client/_app/immutable/assets/2.Bt6VSh9K.css    21.66 kB │ gzip:  4.38 kB
+.svelte-kit/output/client/_app/immutable/entry/start.Bc8d_iaY.js   0.08 kB │ gzip:  0.09 kB
+.svelte-kit/output/client/_app/immutable/chunks/fFtunJTS.js        0.24 kB │ gzip:  0.20 kB
+.svelte-kit/output/client/_app/immutable/chunks/BiMe5fRk.js        0.53 kB │ gzip:  0.34 kB
+.svelte-kit/output/client/_app/immutable/nodes/1.DsjbvQvw.js       0.55 kB │ gzip:  0.36 kB
+.svelte-kit/output/client/_app/immutable/chunks/BLiUO-3p.js        2.66 kB │ gzip:  1.44 kB
+.svelte-kit/output/client/_app/immutable/chunks/DH3vZkAL.js        2.81 kB │ gzip:  1.27 kB
+.svelte-kit/output/client/_app/immutable/nodes/0.Cbx8Y7QZ.js       3.19 kB │ gzip:  1.65 kB
+.svelte-kit/output/client/_app/immutable/entry/app.R5f7KMN6.js     4.99 kB │ gzip:  2.27 kB
+.svelte-kit/output/client/_app/immutable/chunks/D28uq7AJ.js        9.38 kB │ gzip:  3.97 kB
+.svelte-kit/output/client/_app/immutable/chunks/DbU0jLJ1.js       14.37 kB │ gzip:  6.29 kB
+.svelte-kit/output/client/_app/immutable/chunks/XbQGrAcL.js       26.36 kB │ gzip: 10.43 kB
+.svelte-kit/output/client/_app/immutable/chunks/DYs53ZjV.js       27.58 kB │ gzip: 10.65 kB
+.svelte-kit/output/client/_app/immutable/nodes/2.C2Wf8TZm.js      73.79 kB │ gzip: 22.14 kB
+✓ built in 689ms
+.svelte-kit/output/server/.vite/manifest.json                           3.27 kB
+.svelte-kit/output/server/_app/immutable/assets/_layout.BF6lW8Op.css    9.07 kB
+.svelte-kit/output/server/_app/immutable/assets/_page.CUKI-DbB.css     14.46 kB
+.svelte-kit/output/server/chunks/false.js                               0.05 kB
+.svelte-kit/output/server/entries/pages/_layout.js                      0.07 kB
+.svelte-kit/output/server/internal.js                                   0.33 kB
+.svelte-kit/output/server/chunks/environment.js                         0.62 kB
+.svelte-kit/output/server/chunks/utils.js                               1.15 kB
+.svelte-kit/output/server/entries/fallbacks/error.svelte.js             1.36 kB
+.svelte-kit/output/server/entries/pages/_layout.svelte.js               2.40 kB
+.svelte-kit/output/server/chunks/theme.js                               2.41 kB
+.svelte-kit/output/server/chunks/index.js                               2.66 kB
+.svelte-kit/output/server/chunks/exports.js                             5.54 kB
+.svelte-kit/output/server/remote-entry.js                              19.00 kB
+.svelte-kit/output/server/entries/pages/_page.svelte.js                23.74 kB
+.svelte-kit/output/server/chunks/shared.js                             25.96 kB
+.svelte-kit/output/server/chunks/index2.js                             28.89 kB
+.svelte-kit/output/server/chunks/internal.js                           30.25 kB
+.svelte-kit/output/server/chunks/context.js                            55.31 kB
+.svelte-kit/output/server/index.js                                    123.09 kB
+✓ built in 2.06s
+
+Run npm run preview to preview your production build locally.
+
+> Using @sveltejs/adapter-static
+Overwriting build/index.html with fallback page. Consider using a different name for the fallback.
+  Wrote site to "build"
+  ✔ done
+     Running [tauri_cli] Command `cargo build --bins --features tauri/custom-protocol --release`
+   Compiling gowerui v0.1.0 (/home/nef734/Documentos/Proyectos/gowerGUI/src-tauri)
+    Finished `release` profile [optimized] target(s) in 22.18s
+       Built [tauri_cli::build] application at: /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/gowerui
+    Bundling [tauri_bundler::bundle::linux::appimage::linuxdeploy] gowerui_0.1.1_amd64.AppImage (/home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui_0.1.1_amd64.AppImage)
+     Running [tauri_bundler::utils] Command `/home/nef734/.cache/tauri/linuxdeploy-x86_64.AppImage  --appimage-extract-and-run --verbosity 1 --appdir /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir --plugin gtk --output appimage`
+linuxdeploy version 1-alpha (git commit ID 659c9db), GitHub actions build 10 built on 2024-07-26 15:40:22 UTC
+
+-- Creating basic AppDir structure --
+Creating directory /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/bin/
+Creating directory /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/
+Creating directory /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/share/applications/
+Creating directory /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/share/icons/hicolor/
+Creating directory /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/share/icons/hicolor/16x16/apps/
+Creating directory /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/share/icons/hicolor/32x32/apps/
+Creating directory /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/share/icons/hicolor/64x64/apps/
+Creating directory /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/share/icons/hicolor/128x128/apps/
+Creating directory /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/share/icons/hicolor/256x256/apps/
+Creating directory /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/share/icons/hicolor/scalable/apps/
+
+-- Deploying dependencies for existing files in AppDir --
+Deploying dependencies for ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/bin/gowerui
+Deploying shared library /lib64/libgdk-3.so.0
+WARNING: Could not find copyright files for file /lib64/libgdk-3.so.0 using dpkg-query
+Deploying shared library /lib64/libgdk_pixbuf-2.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgdk_pixbuf-2.0.so.0 using dpkg-query
+Deploying shared library /lib64/libgio-2.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgio-2.0.so.0 using dpkg-query
+Deploying shared library /lib64/libgobject-2.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgobject-2.0.so.0 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libm.so.6
+Deploying shared library /lib64/libcairo.so.2
+WARNING: Could not find copyright files for file /lib64/libcairo.so.2 using dpkg-query
+Deploying shared library /lib64/libglib-2.0.so.0
+WARNING: Could not find copyright files for file /lib64/libglib-2.0.so.0 using dpkg-query
+Deploying shared library /lib64/libwebkit2gtk-4.1.so.0
+WARNING: Could not find copyright files for file /lib64/libwebkit2gtk-4.1.so.0 using dpkg-query
+Deploying shared library /lib64/libgtk-3.so.0
+WARNING: Could not find copyright files for file /lib64/libgtk-3.so.0 using dpkg-query
+Deploying shared library /lib64/libsoup-3.0.so.0
+WARNING: Could not find copyright files for file /lib64/libsoup-3.0.so.0 using dpkg-query
+Deploying shared library /lib64/libjavascriptcoregtk-4.1.so.0
+WARNING: Could not find copyright files for file /lib64/libjavascriptcoregtk-4.1.so.0 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libgcc_s.so.1
+Skipping deployment of blacklisted library /lib64/libc.so.6
+Deploying shared library /lib64/libpango-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libpango-1.0.so.0 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libfribidi.so.0
+Deploying shared library /lib64/libcairo-gobject.so.2
+WARNING: Could not find copyright files for file /lib64/libcairo-gobject.so.2 using dpkg-query
+Deploying shared library /lib64/libepoxy.so.0
+WARNING: Could not find copyright files for file /lib64/libepoxy.so.0 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libfontconfig.so.1
+Deploying shared library /lib64/libpangocairo-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libpangocairo-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libxkbcommon.so.0
+WARNING: Could not find copyright files for file /lib64/libxkbcommon.so.0 using dpkg-query
+Deploying shared library /lib64/libwayland-client.so.0
+WARNING: Could not find copyright files for file /lib64/libwayland-client.so.0 using dpkg-query
+Deploying shared library /lib64/libwayland-cursor.so.0
+WARNING: Could not find copyright files for file /lib64/libwayland-cursor.so.0 using dpkg-query
+Deploying shared library /lib64/libwayland-egl.so.1
+WARNING: Could not find copyright files for file /lib64/libwayland-egl.so.1 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libX11.so.6
+Deploying shared library /lib64/libXi.so.6
+WARNING: Could not find copyright files for file /lib64/libXi.so.6 using dpkg-query
+Deploying shared library /lib64/libXext.so.6
+WARNING: Could not find copyright files for file /lib64/libXext.so.6 using dpkg-query
+Deploying shared library /lib64/libXcursor.so.1
+WARNING: Could not find copyright files for file /lib64/libXcursor.so.1 using dpkg-query
+Deploying shared library /lib64/libXdamage.so.1
+WARNING: Could not find copyright files for file /lib64/libXdamage.so.1 using dpkg-query
+Deploying shared library /lib64/libXfixes.so.3
+WARNING: Could not find copyright files for file /lib64/libXfixes.so.3 using dpkg-query
+Deploying shared library /lib64/libXcomposite.so.1
+WARNING: Could not find copyright files for file /lib64/libXcomposite.so.1 using dpkg-query
+Deploying shared library /lib64/libXrandr.so.2
+WARNING: Could not find copyright files for file /lib64/libXrandr.so.2 using dpkg-query
+Deploying shared library /lib64/libXinerama.so.1
+WARNING: Could not find copyright files for file /lib64/libXinerama.so.1 using dpkg-query
+Deploying shared library /lib64/libgmodule-2.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgmodule-2.0.so.0 using dpkg-query
+Deploying shared library /lib64/libglycin-2.so.0
+WARNING: Could not find copyright files for file /lib64/libglycin-2.so.0 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libz.so.1
+Deploying shared library /lib64/libmount.so.1
+WARNING: Could not find copyright files for file /lib64/libmount.so.1 using dpkg-query
+Deploying shared library /lib64/libselinux.so.1
+WARNING: Could not find copyright files for file /lib64/libselinux.so.1 using dpkg-query
+Deploying shared library /lib64/libffi.so.8
+WARNING: Could not find copyright files for file /lib64/libffi.so.8 using dpkg-query
+Deploying shared library /lib64/libpng16.so.16
+WARNING: Could not find copyright files for file /lib64/libpng16.so.16 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libfreetype.so.6
+Deploying shared library /lib64/libXrender.so.1
+WARNING: Could not find copyright files for file /lib64/libXrender.so.1 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libxcb.so.1
+Deploying shared library /lib64/libxcb-render.so.0
+WARNING: Could not find copyright files for file /lib64/libxcb-render.so.0 using dpkg-query
+Deploying shared library /lib64/libxcb-shm.so.0
+WARNING: Could not find copyright files for file /lib64/libxcb-shm.so.0 using dpkg-query
+Deploying shared library /lib64/libpixman-1.so.0
+WARNING: Could not find copyright files for file /lib64/libpixman-1.so.0 using dpkg-query
+Deploying shared library /lib64/libpcre2-8.so.0
+WARNING: Could not find copyright files for file /lib64/libpcre2-8.so.0 using dpkg-query
+Deploying shared library /lib64/libwebpmux.so.3
+WARNING: Could not find copyright files for file /lib64/libwebpmux.so.3 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libexpat.so.1
+Deploying shared library /lib64/libicui18n.so.77
+WARNING: Could not find copyright files for file /lib64/libicui18n.so.77 using dpkg-query
+Deploying shared library /lib64/libsystemd.so.0
+WARNING: Could not find copyright files for file /lib64/libsystemd.so.0 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libharfbuzz.so.0
+Deploying shared library /lib64/libjpeg.so.62
+WARNING: Could not find copyright files for file /lib64/libjpeg.so.62 using dpkg-query
+Deploying shared library /lib64/libicuuc.so.77
+WARNING: Could not find copyright files for file /lib64/libicuuc.so.77 using dpkg-query
+Deploying shared library /lib64/libatk-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libatk-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libxml2.so.2
+WARNING: Could not find copyright files for file /lib64/libxml2.so.2 using dpkg-query
+Deploying shared library /lib64/libsqlite3.so.0
+WARNING: Could not find copyright files for file /lib64/libsqlite3.so.0 using dpkg-query
+Deploying shared library /lib64/libxslt.so.1
+WARNING: Could not find copyright files for file /lib64/libxslt.so.1 using dpkg-query
+Deploying shared library /lib64/liblcms2.so.2
+WARNING: Could not find copyright files for file /lib64/liblcms2.so.2 using dpkg-query
+Deploying shared library /lib64/libwoff2dec.so.1.0.2
+WARNING: Could not find copyright files for file /lib64/libwoff2dec.so.1.0.2 using dpkg-query
+Deploying shared library /lib64/libgcrypt.so.20
+WARNING: Could not find copyright files for file /lib64/libgcrypt.so.20 using dpkg-query
+Deploying shared library /lib64/libgstallocators-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgstallocators-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libgstapp-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgstapp-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libgstbase-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgstbase-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libgstreamer-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgstreamer-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libgstpbutils-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgstpbutils-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libgstaudio-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgstaudio-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libgsttag-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgsttag-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libgstvideo-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgstvideo-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libgstgl-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgstgl-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libgstfft-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgstfft-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libflite.so.1
+WARNING: Could not find copyright files for file /lib64/libflite.so.1 using dpkg-query
+Deploying shared library /lib64/libflite_usenglish.so.1
+WARNING: Could not find copyright files for file /lib64/libflite_usenglish.so.1 using dpkg-query
+Deploying shared library /lib64/libflite_cmulex.so.1
+WARNING: Could not find copyright files for file /lib64/libflite_cmulex.so.1 using dpkg-query
+Deploying shared library /lib64/libflite_cmu_us_awb.so.1
+WARNING: Could not find copyright files for file /lib64/libflite_cmu_us_awb.so.1 using dpkg-query
+Deploying shared library /lib64/libflite_cmu_us_kal.so.1
+WARNING: Could not find copyright files for file /lib64/libflite_cmu_us_kal.so.1 using dpkg-query
+Deploying shared library /lib64/libflite_cmu_us_rms.so.1
+WARNING: Could not find copyright files for file /lib64/libflite_cmu_us_rms.so.1 using dpkg-query
+Deploying shared library /lib64/libflite_cmu_us_slt.so.1
+WARNING: Could not find copyright files for file /lib64/libflite_cmu_us_slt.so.1 using dpkg-query
+Deploying shared library /lib64/libwebpdemux.so.2
+WARNING: Could not find copyright files for file /lib64/libwebpdemux.so.2 using dpkg-query
+Deploying shared library /lib64/libwebp.so.7
+WARNING: Could not find copyright files for file /lib64/libwebp.so.7 using dpkg-query
+Deploying shared library /lib64/libjxl.so.0.11
+WARNING: Could not find copyright files for file /lib64/libjxl.so.0.11 using dpkg-query
+Deploying shared library /lib64/libavif.so.16
+WARNING: Could not find copyright files for file /lib64/libavif.so.16 using dpkg-query
+Deploying shared library /lib64/libharfbuzz-icu.so.0
+WARNING: Could not find copyright files for file /lib64/libharfbuzz-icu.so.0 using dpkg-query
+Deploying shared library /lib64/libenchant-2.so.2
+WARNING: Could not find copyright files for file /lib64/libenchant-2.so.2 using dpkg-query
+Deploying shared library /lib64/libsecret-1.so.0
+WARNING: Could not find copyright files for file /lib64/libsecret-1.so.0 using dpkg-query
+Deploying shared library /lib64/libtasn1.so.6
+WARNING: Could not find copyright files for file /lib64/libtasn1.so.6 using dpkg-query
+Deploying shared library /lib64/libhyphen.so.0
+WARNING: Could not find copyright files for file /lib64/libhyphen.so.0 using dpkg-query
+Deploying shared library /lib64/libwayland-server.so.0
+WARNING: Could not find copyright files for file /lib64/libwayland-server.so.0 using dpkg-query
+Deploying shared library /lib64/libmanette-0.2.so.0
+WARNING: Could not find copyright files for file /lib64/libmanette-0.2.so.0 using dpkg-query
+Deploying shared library /lib64/libseccomp.so.2
+WARNING: Could not find copyright files for file /lib64/libseccomp.so.2 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libgbm.so.1
+Skipping deployment of blacklisted library /lib64/libdrm.so.2
+Skipping deployment of blacklisted library /lib64/libstdc++.so.6
+Deploying shared library /lib64/libpangoft2-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libpangoft2-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libatk-bridge-2.0.so.0
+WARNING: Could not find copyright files for file /lib64/libatk-bridge-2.0.so.0 using dpkg-query
+Deploying shared library /lib64/libcloudproviders.so.0
+WARNING: Could not find copyright files for file /lib64/libcloudproviders.so.0 using dpkg-query
+Deploying shared library /lib64/libtinysparql-3.0.so.0
+WARNING: Could not find copyright files for file /lib64/libtinysparql-3.0.so.0 using dpkg-query
+Deploying shared library /lib64/libpsl.so.5
+WARNING: Could not find copyright files for file /lib64/libpsl.so.5 using dpkg-query
+Deploying shared library /lib64/libbrotlidec.so.1
+WARNING: Could not find copyright files for file /lib64/libbrotlidec.so.1 using dpkg-query
+Deploying shared library /lib64/libgssapi_krb5.so.2
+WARNING: Could not find copyright files for file /lib64/libgssapi_krb5.so.2 using dpkg-query
+Deploying shared library /lib64/libnghttp2.so.14
+WARNING: Could not find copyright files for file /lib64/libnghttp2.so.14 using dpkg-query
+Deploying shared library /lib64/libatomic.so.1
+WARNING: Could not find copyright files for file /lib64/libatomic.so.1 using dpkg-query
+Deploying shared library /lib64/libthai.so.0
+WARNING: Could not find copyright files for file /lib64/libthai.so.0 using dpkg-query
+Deploying shared library /lib64/libblkid.so.1
+WARNING: Could not find copyright files for file /lib64/libblkid.so.1 using dpkg-query
+Deploying shared library /lib64/libbz2.so.1
+WARNING: Could not find copyright files for file /lib64/libbz2.so.1 using dpkg-query
+Deploying shared library /lib64/libXau.so.6
+WARNING: Could not find copyright files for file /lib64/libXau.so.6 using dpkg-query
+Deploying shared library /lib64/libcap.so.2
+WARNING: Could not find copyright files for file /lib64/libcap.so.2 using dpkg-query
+Deploying shared library /lib64/libgraphite2.so.3
+WARNING: Could not find copyright files for file /lib64/libgraphite2.so.3 using dpkg-query
+Deploying shared library /lib64/libicudata.so.77
+WARNING: Could not find copyright files for file /lib64/libicudata.so.77 using dpkg-query
+Deploying shared library /lib64/liblzma.so.5
+WARNING: Could not find copyright files for file /lib64/liblzma.so.5 using dpkg-query
+Deploying shared library /lib64/libwoff2common.so.1.0.2
+WARNING: Could not find copyright files for file /lib64/libwoff2common.so.1.0.2 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libgpg-error.so.0
+Deploying shared library /lib64/libunwind.so.8
+WARNING: Could not find copyright files for file /lib64/libunwind.so.8 using dpkg-query
+Deploying shared library /lib64/libdw.so.1
+WARNING: Could not find copyright files for file /lib64/libdw.so.1 using dpkg-query
+Deploying shared library /lib64/liborc-0.4.so.0
+WARNING: Could not find copyright files for file /lib64/liborc-0.4.so.0 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libEGL.so.1
+Skipping deployment of blacklisted library /lib64/libGLX.so.0
+Skipping deployment of blacklisted library /lib64/libX11-xcb.so.1
+Deploying shared library /lib64/libgudev-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libgudev-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libpulse-simple.so.0
+WARNING: Could not find copyright files for file /lib64/libpulse-simple.so.0 using dpkg-query
+Deploying shared library /lib64/libsharpyuv.so.0
+WARNING: Could not find copyright files for file /lib64/libsharpyuv.so.0 using dpkg-query
+Deploying shared library /lib64/libjxl_cms.so.0.11
+WARNING: Could not find copyright files for file /lib64/libjxl_cms.so.0.11 using dpkg-query
+Deploying shared library /lib64/libhwy.so.1
+WARNING: Could not find copyright files for file /lib64/libhwy.so.1 using dpkg-query
+Deploying shared library /lib64/libbrotlienc.so.1
+WARNING: Could not find copyright files for file /lib64/libbrotlienc.so.1 using dpkg-query
+Deploying shared library /lib64/libyuv.so.0
+WARNING: Could not find copyright files for file /lib64/libyuv.so.0 using dpkg-query
+Deploying shared library /lib64/libdav1d.so.7
+WARNING: Could not find copyright files for file /lib64/libdav1d.so.7 using dpkg-query
+Deploying shared library /lib64/librav1e.so.0
+WARNING: Could not find copyright files for file /lib64/librav1e.so.0 using dpkg-query
+Deploying shared library /lib64/libSvtAv1Enc.so.3
+WARNING: Could not find copyright files for file /lib64/libSvtAv1Enc.so.3 using dpkg-query
+Deploying shared library /lib64/libaom.so.3
+WARNING: Could not find copyright files for file /lib64/libaom.so.3 using dpkg-query
+Deploying shared library /lib64/libgnutls.so.30
+WARNING: Could not find copyright files for file /lib64/libgnutls.so.30 using dpkg-query
+Deploying shared library /lib64/libhidapi-hidraw.so.0
+WARNING: Could not find copyright files for file /lib64/libhidapi-hidraw.so.0 using dpkg-query
+Deploying shared library /lib64/libevdev.so.2
+WARNING: Could not find copyright files for file /lib64/libevdev.so.2 using dpkg-query
+Deploying shared library /lib64/libatspi.so.0
+WARNING: Could not find copyright files for file /lib64/libatspi.so.0 using dpkg-query
+Deploying shared library /lib64/libdbus-1.so.3
+WARNING: Could not find copyright files for file /lib64/libdbus-1.so.3 using dpkg-query
+Deploying shared library /lib64/libjson-glib-1.0.so.0
+WARNING: Could not find copyright files for file /lib64/libjson-glib-1.0.so.0 using dpkg-query
+Deploying shared library /lib64/libunistring.so.5
+WARNING: Could not find copyright files for file /lib64/libunistring.so.5 using dpkg-query
+Deploying shared library /lib64/libidn2.so.0
+WARNING: Could not find copyright files for file /lib64/libidn2.so.0 using dpkg-query
+Deploying shared library /lib64/libbrotlicommon.so.1
+WARNING: Could not find copyright files for file /lib64/libbrotlicommon.so.1 using dpkg-query
+Deploying shared library /lib64/libkrb5.so.3
+WARNING: Could not find copyright files for file /lib64/libkrb5.so.3 using dpkg-query
+Deploying shared library /lib64/libk5crypto.so.3
+WARNING: Could not find copyright files for file /lib64/libk5crypto.so.3 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libcom_err.so.2
+Deploying shared library /lib64/libkrb5support.so.0
+WARNING: Could not find copyright files for file /lib64/libkrb5support.so.0 using dpkg-query
+Deploying shared library /lib64/libkeyutils.so.1
+WARNING: Could not find copyright files for file /lib64/libkeyutils.so.1 using dpkg-query
+Deploying shared library /lib64/libcrypto.so.3
+WARNING: Could not find copyright files for file /lib64/libcrypto.so.3 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libresolv.so.2
+Deploying shared library /lib64/libdatrie.so.1
+WARNING: Could not find copyright files for file /lib64/libdatrie.so.1 using dpkg-query
+Deploying shared library /lib64/libelf.so.1
+WARNING: Could not find copyright files for file /lib64/libelf.so.1 using dpkg-query
+Deploying shared library /lib64/libzstd.so.1
+WARNING: Could not find copyright files for file /lib64/libzstd.so.1 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libGLdispatch.so.0
+Deploying shared library /lib64/libudev.so.1
+WARNING: Could not find copyright files for file /lib64/libudev.so.1 using dpkg-query
+Deploying shared library /lib64/libpulse.so.0
+WARNING: Could not find copyright files for file /lib64/libpulse.so.0 using dpkg-query
+Deploying shared library /usr/lib64/pulseaudio/libpulsecommon-17.0.so
+WARNING: Could not find copyright files for file /usr/lib64/pulseaudio/libpulsecommon-17.0.so using dpkg-query
+Deploying shared library /lib64/libvmaf.so.3
+WARNING: Could not find copyright files for file /lib64/libvmaf.so.3 using dpkg-query
+Deploying shared library /lib64/libp11-kit.so.0
+WARNING: Could not find copyright files for file /lib64/libp11-kit.so.0 using dpkg-query
+Deploying shared library /lib64/libhogweed.so.6
+WARNING: Could not find copyright files for file /lib64/libhogweed.so.6 using dpkg-query
+Deploying shared library /lib64/libnettle.so.8
+WARNING: Could not find copyright files for file /lib64/libnettle.so.8 using dpkg-query
+Skipping deployment of blacklisted library /lib64/libgmp.so.10
+Deploying shared library /lib64/libsndfile.so.1
+WARNING: Could not find copyright files for file /lib64/libsndfile.so.1 using dpkg-query
+Deploying shared library /lib64/libasyncns.so.0
+WARNING: Could not find copyright files for file /lib64/libasyncns.so.0 using dpkg-query
+Deploying shared library /lib64/libgsm.so.1
+WARNING: Could not find copyright files for file /lib64/libgsm.so.1 using dpkg-query
+Deploying shared library /lib64/libFLAC.so.14
+WARNING: Could not find copyright files for file /lib64/libFLAC.so.14 using dpkg-query
+Deploying shared library /lib64/libvorbis.so.0
+WARNING: Could not find copyright files for file /lib64/libvorbis.so.0 using dpkg-query
+Deploying shared library /lib64/libvorbisenc.so.2
+WARNING: Could not find copyright files for file /lib64/libvorbisenc.so.2 using dpkg-query
+Deploying shared library /lib64/libopus.so.0
+WARNING: Could not find copyright files for file /lib64/libopus.so.0 using dpkg-query
+Deploying shared library /lib64/libogg.so.0
+WARNING: Could not find copyright files for file /lib64/libogg.so.0 using dpkg-query
+Deploying shared library /lib64/libmpg123.so.0
+WARNING: Could not find copyright files for file /lib64/libmpg123.so.0 using dpkg-query
+Deploying shared library /lib64/libmp3lame.so.0
+WARNING: Could not find copyright files for file /lib64/libmp3lame.so.0 using dpkg-query
+Deploying dependencies for ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/bin/gower
+Deploying dependencies for ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libayatana-appindicator3.so.1
+Deploying shared library /lib64/libayatana-indicator3.so.7
+WARNING: Could not find copyright files for file /lib64/libayatana-indicator3.so.7 using dpkg-query
+Deploying shared library /lib64/libdbusmenu-gtk3.so.4
+WARNING: Could not find copyright files for file /lib64/libdbusmenu-gtk3.so.4 using dpkg-query
+Deploying shared library /lib64/libdbusmenu-glib.so.4
+WARNING: Could not find copyright files for file /lib64/libdbusmenu-glib.so.4 using dpkg-query
+Deploying shared library /lib64/libayatana-ido3-0.4.so.0
+WARNING: Could not find copyright files for file /lib64/libayatana-ido3-0.4.so.0 using dpkg-query
+
+-- Copying files into AppDir --
+Copying file /lib64/libFLAC.so.14 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libFLAC.so.14
+Copying file /lib64/libSvtAv1Enc.so.3 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libSvtAv1Enc.so.3
+Copying file /lib64/libXau.so.6 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXau.so.6
+Copying file /lib64/libXcomposite.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXcomposite.so.1
+Copying file /lib64/libXcursor.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXcursor.so.1
+Copying file /lib64/libXdamage.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXdamage.so.1
+Copying file /lib64/libXext.so.6 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXext.so.6
+Copying file /lib64/libXfixes.so.3 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXfixes.so.3
+Copying file /lib64/libXi.so.6 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXi.so.6
+Copying file /lib64/libXinerama.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXinerama.so.1
+Copying file /lib64/libXrandr.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXrandr.so.2
+Copying file /lib64/libXrender.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXrender.so.1
+Copying file /lib64/libaom.so.3 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libaom.so.3
+Copying file /lib64/libasyncns.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libasyncns.so.0
+Copying file /lib64/libatk-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libatk-1.0.so.0
+Copying file /lib64/libatk-bridge-2.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libatk-bridge-2.0.so.0
+Copying file /lib64/libatomic.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libatomic.so.1
+Copying file /lib64/libatspi.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libatspi.so.0
+Copying file /lib64/libavif.so.16 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libavif.so.16
+Copying file /lib64/libayatana-ido3-0.4.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libayatana-ido3-0.4.so.0
+Copying file /lib64/libayatana-indicator3.so.7 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libayatana-indicator3.so.7
+Copying file /lib64/libblkid.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libblkid.so.1
+Copying file /lib64/libbrotlicommon.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libbrotlicommon.so.1
+Copying file /lib64/libbrotlidec.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libbrotlidec.so.1
+Copying file /lib64/libbrotlienc.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libbrotlienc.so.1
+Copying file /lib64/libbz2.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libbz2.so.1
+Copying file /lib64/libcairo-gobject.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libcairo-gobject.so.2
+Copying file /lib64/libcairo.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libcairo.so.2
+Copying file /lib64/libcap.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libcap.so.2
+Copying file /lib64/libcloudproviders.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libcloudproviders.so.0
+Copying file /lib64/libcrypto.so.3 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libcrypto.so.3
+Copying file /lib64/libdatrie.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdatrie.so.1
+Copying file /lib64/libdav1d.so.7 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdav1d.so.7
+Copying file /lib64/libdbus-1.so.3 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdbus-1.so.3
+Copying file /lib64/libdbusmenu-glib.so.4 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdbusmenu-glib.so.4
+Copying file /lib64/libdbusmenu-gtk3.so.4 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdbusmenu-gtk3.so.4
+Copying file /lib64/libdw.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdw.so.1
+Copying file /lib64/libelf.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libelf.so.1
+Copying file /lib64/libenchant-2.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libenchant-2.so.2
+Copying file /lib64/libepoxy.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libepoxy.so.0
+Copying file /lib64/libevdev.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libevdev.so.2
+Copying file /lib64/libffi.so.8 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libffi.so.8
+Copying file /lib64/libflite.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite.so.1
+Copying file /lib64/libflite_cmu_us_awb.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_cmu_us_awb.so.1
+Copying file /lib64/libflite_cmu_us_kal.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_cmu_us_kal.so.1
+Copying file /lib64/libflite_cmu_us_rms.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_cmu_us_rms.so.1
+Copying file /lib64/libflite_cmu_us_slt.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_cmu_us_slt.so.1
+Copying file /lib64/libflite_cmulex.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_cmulex.so.1
+Copying file /lib64/libflite_usenglish.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_usenglish.so.1
+Copying file /lib64/libgcrypt.so.20 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgcrypt.so.20
+Copying file /lib64/libgdk-3.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgdk-3.so.0
+Copying file /lib64/libgdk_pixbuf-2.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgdk_pixbuf-2.0.so.0
+Copying file /lib64/libgio-2.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgio-2.0.so.0
+Copying file /lib64/libglib-2.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libglib-2.0.so.0
+Copying file /lib64/libglycin-2.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libglycin-2.so.0
+Copying file /lib64/libgmodule-2.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgmodule-2.0.so.0
+Copying file /lib64/libgnutls.so.30 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgnutls.so.30
+Copying file /lib64/libgobject-2.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgobject-2.0.so.0
+Copying file /lib64/libgraphite2.so.3 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgraphite2.so.3
+Copying file /lib64/libgsm.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgsm.so.1
+Copying file /lib64/libgssapi_krb5.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgssapi_krb5.so.2
+Copying file /lib64/libgstallocators-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstallocators-1.0.so.0
+Copying file /lib64/libgstapp-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstapp-1.0.so.0
+Copying file /lib64/libgstaudio-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstaudio-1.0.so.0
+Copying file /lib64/libgstbase-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstbase-1.0.so.0
+Copying file /lib64/libgstfft-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstfft-1.0.so.0
+Copying file /lib64/libgstgl-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstgl-1.0.so.0
+Copying file /lib64/libgstpbutils-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstpbutils-1.0.so.0
+Copying file /lib64/libgstreamer-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstreamer-1.0.so.0
+Copying file /lib64/libgsttag-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgsttag-1.0.so.0
+Copying file /lib64/libgstvideo-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstvideo-1.0.so.0
+Copying file /lib64/libgtk-3.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgtk-3.so.0
+Copying file /lib64/libgudev-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgudev-1.0.so.0
+Copying file /lib64/libharfbuzz-icu.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libharfbuzz-icu.so.0
+Copying file /lib64/libhidapi-hidraw.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libhidapi-hidraw.so.0
+Copying file /lib64/libhogweed.so.6 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libhogweed.so.6
+Copying file /lib64/libhwy.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libhwy.so.1
+Copying file /lib64/libhyphen.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libhyphen.so.0
+Copying file /lib64/libicudata.so.77 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libicudata.so.77
+Copying file /lib64/libicui18n.so.77 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libicui18n.so.77
+Copying file /lib64/libicuuc.so.77 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libicuuc.so.77
+Copying file /lib64/libidn2.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libidn2.so.0
+Copying file /lib64/libjavascriptcoregtk-4.1.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libjavascriptcoregtk-4.1.so.0
+Copying file /lib64/libjpeg.so.62 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libjpeg.so.62
+Copying file /lib64/libjson-glib-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libjson-glib-1.0.so.0
+Copying file /lib64/libjxl.so.0.11 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libjxl.so.0.11
+Copying file /lib64/libjxl_cms.so.0.11 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libjxl_cms.so.0.11
+Copying file /lib64/libk5crypto.so.3 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libk5crypto.so.3
+Copying file /lib64/libkeyutils.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libkeyutils.so.1
+Copying file /lib64/libkrb5.so.3 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libkrb5.so.3
+Copying file /lib64/libkrb5support.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libkrb5support.so.0
+Copying file /lib64/liblcms2.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/liblcms2.so.2
+Copying file /lib64/liblzma.so.5 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/liblzma.so.5
+Copying file /lib64/libmanette-0.2.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libmanette-0.2.so.0
+Copying file /lib64/libmount.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libmount.so.1
+Copying file /lib64/libmp3lame.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libmp3lame.so.0
+Copying file /lib64/libmpg123.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libmpg123.so.0
+Copying file /lib64/libnettle.so.8 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libnettle.so.8
+Copying file /lib64/libnghttp2.so.14 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libnghttp2.so.14
+Copying file /lib64/libogg.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libogg.so.0
+Copying file /lib64/libopus.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libopus.so.0
+Copying file /lib64/liborc-0.4.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/liborc-0.4.so.0
+Copying file /lib64/libp11-kit.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libp11-kit.so.0
+Copying file /lib64/libpango-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpango-1.0.so.0
+Copying file /lib64/libpangocairo-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpangocairo-1.0.so.0
+Copying file /lib64/libpangoft2-1.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpangoft2-1.0.so.0
+Copying file /lib64/libpcre2-8.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpcre2-8.so.0
+Copying file /lib64/libpixman-1.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpixman-1.so.0
+Copying file /lib64/libpng16.so.16 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpng16.so.16
+Copying file /lib64/libpsl.so.5 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpsl.so.5
+Copying file /lib64/libpulse-simple.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpulse-simple.so.0
+Copying file /lib64/libpulse.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpulse.so.0
+Copying file /lib64/librav1e.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/librav1e.so.0
+Copying file /lib64/libseccomp.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libseccomp.so.2
+Copying file /lib64/libsecret-1.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsecret-1.so.0
+Copying file /lib64/libselinux.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libselinux.so.1
+Copying file /lib64/libsharpyuv.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsharpyuv.so.0
+Copying file /lib64/libsndfile.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsndfile.so.1
+Copying file /lib64/libsoup-3.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsoup-3.0.so.0
+Copying file /lib64/libsqlite3.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsqlite3.so.0
+Copying file /lib64/libsystemd.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsystemd.so.0
+Copying file /lib64/libtasn1.so.6 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libtasn1.so.6
+Copying file /lib64/libthai.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libthai.so.0
+Copying file /lib64/libtinysparql-3.0.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libtinysparql-3.0.so.0
+Copying file /lib64/libudev.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libudev.so.1
+Copying file /lib64/libunistring.so.5 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libunistring.so.5
+Copying file /lib64/libunwind.so.8 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libunwind.so.8
+Copying file /lib64/libvmaf.so.3 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libvmaf.so.3
+Copying file /lib64/libvorbis.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libvorbis.so.0
+Copying file /lib64/libvorbisenc.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libvorbisenc.so.2
+Copying file /lib64/libwayland-client.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwayland-client.so.0
+Copying file /lib64/libwayland-cursor.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwayland-cursor.so.0
+Copying file /lib64/libwayland-egl.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwayland-egl.so.1
+Copying file /lib64/libwayland-server.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwayland-server.so.0
+Copying file /lib64/libwebkit2gtk-4.1.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwebkit2gtk-4.1.so.0
+Copying file /lib64/libwebp.so.7 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwebp.so.7
+Copying file /lib64/libwebpdemux.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwebpdemux.so.2
+Copying file /lib64/libwebpmux.so.3 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwebpmux.so.3
+Copying file /lib64/libwoff2common.so.1.0.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwoff2common.so.1.0.2
+Copying file /lib64/libwoff2dec.so.1.0.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwoff2dec.so.1.0.2
+Copying file /lib64/libxcb-render.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libxcb-render.so.0
+Copying file /lib64/libxcb-shm.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libxcb-shm.so.0
+Copying file /lib64/libxkbcommon.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libxkbcommon.so.0
+Copying file /lib64/libxml2.so.2 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libxml2.so.2
+Copying file /lib64/libxslt.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libxslt.so.1
+Copying file /lib64/libyuv.so.0 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libyuv.so.0
+Copying file /lib64/libzstd.so.1 to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libzstd.so.1
+Copying file /usr/lib64/pulseaudio/libpulsecommon-17.0.so to /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpulsecommon-17.0.so
+WARNING: $NO_STRIP environment variable detected, not stripping binaries
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/bin/gower to $ORIGIN/../lib
+ERROR: Call to patchelf failed:
+patchelf: patchelf.cc:693: void ElfFile<Elf_Ehdr, Elf_Phdr, Elf_Shdr, Elf_Addr, Elf_Off, Elf_Dyn, Elf_Sym>::rewriteSectionsExecutable() [with Elf_Ehdr = Elf64_Ehdr; Elf_Phdr = Elf64_Phdr; Elf_Shdr = Elf64_Shdr; Elf_Addr = long unsigned int; Elf_Off = long unsigned int; Elf_Dyn = Elf64_Dyn; Elf_Sym = Elf64_Sym]: Assertion `(off_t) rdi(hdr->e_shoff) >= startOffset' failed.
+
+ERROR: Failed to set rpath in ELF file: /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/bin/gower
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/bin/gowerui to $ORIGIN/../lib
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libFLAC.so.14 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libSvtAv1Enc.so.3 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXau.so.6 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXcomposite.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXcursor.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXdamage.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXext.so.6 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXfixes.so.3 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXi.so.6 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXinerama.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXrandr.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libXrender.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libaom.so.3 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libasyncns.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libatk-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libatk-bridge-2.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libatomic.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libatspi.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libavif.so.16 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libayatana-appindicator3.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libayatana-ido3-0.4.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libayatana-indicator3.so.7 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libblkid.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libbrotlicommon.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libbrotlidec.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libbrotlienc.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libbz2.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libcairo-gobject.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libcairo.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libcap.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libcloudproviders.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libcrypto.so.3 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdatrie.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdav1d.so.7 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdbus-1.so.3 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdbusmenu-glib.so.4 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdbusmenu-gtk3.so.4 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libdw.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libelf.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libenchant-2.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libepoxy.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libevdev.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libffi.so.8 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_cmu_us_awb.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_cmu_us_kal.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_cmu_us_rms.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_cmu_us_slt.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_cmulex.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libflite_usenglish.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgcrypt.so.20 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgdk-3.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgdk_pixbuf-2.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgio-2.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libglib-2.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libglycin-2.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgmodule-2.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgnutls.so.30 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgobject-2.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgraphite2.so.3 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgsm.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgssapi_krb5.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstallocators-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstapp-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstaudio-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstbase-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstfft-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstgl-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstpbutils-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstreamer-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgsttag-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgstvideo-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgtk-3.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libgudev-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libharfbuzz-icu.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libhidapi-hidraw.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libhogweed.so.6 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libhwy.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libhyphen.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libicudata.so.77 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libicui18n.so.77 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libicuuc.so.77 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libidn2.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libjavascriptcoregtk-4.1.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libjpeg.so.62 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libjson-glib-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libjxl.so.0.11 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libjxl_cms.so.0.11 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libk5crypto.so.3 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libkeyutils.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libkrb5.so.3 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libkrb5support.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/liblcms2.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/liblzma.so.5 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libmanette-0.2.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libmount.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libmp3lame.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libmpg123.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libnettle.so.8 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libnghttp2.so.14 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libogg.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libopus.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/liborc-0.4.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libp11-kit.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpango-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpangocairo-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpangoft2-1.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpcre2-8.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpixman-1.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpng16.so.16 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpsl.so.5 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpulse-simple.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpulse.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libpulsecommon-17.0.so to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/librav1e.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libseccomp.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsecret-1.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libselinux.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsharpyuv.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsndfile.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsoup-3.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsqlite3.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libsystemd.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libtasn1.so.6 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libthai.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libtinysparql-3.0.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libudev.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libunistring.so.5 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libunwind.so.8 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libvmaf.so.3 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libvorbis.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libvorbisenc.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwayland-client.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwayland-cursor.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwayland-egl.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwayland-server.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwebkit2gtk-4.1.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwebp.so.7 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwebpdemux.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwebpmux.so.3 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwoff2common.so.1.0.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libwoff2dec.so.1.0.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libxcb-render.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libxcb-shm.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libxkbcommon.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libxml2.so.2 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libxslt.so.1 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libyuv.so.0 to $ORIGIN
+Setting rpath in ELF file /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir/usr/lib/libzstd.so.1 to $ORIGIN
+
+-- Running input plugin: gtk --
+[gtk/stdout] Installing AppRun hook
+[gtk/stderr] Advertencia: el esquema «org.freedesktop.IBus.Chewing» tiene la ruta «/desktop/ibus/engine/chewing/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stdout] Installing GLib schemas
+[gtk/stderr] Advertencia: el esquema «org.freedesktop.ibus» tiene la ruta «/desktop/ibus/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stdout] Installing GTK 3.0 modules
+[gtk/stderr] Advertencia: el esquema «org.freedesktop.ibus.general» tiene la ruta «/desktop/ibus/general/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] Advertencia: el esquema «org.freedesktop.ibus.general.hotkey» tiene la ruta «/desktop/ibus/general/hotkey/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] Advertencia: el esquema «org.freedesktop.ibus.panel» tiene la ruta «/desktop/ibus/panel/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] Advertencia: el esquema «org.freedesktop.ibus.panel.emoji» tiene la ruta «/desktop/ibus/panel/emoji/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] Advertencia: el esquema «org.gnome.crypto.cache» tiene la ruta «/desktop/gnome/crypto/cache/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] Advertencia: el esquema «org.gnome.crypto.pgp» tiene la ruta «/desktop/gnome/crypto/pgp/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] Advertencia: el esquema «org.gnome.system.locale» tiene la ruta «/system/locale/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] Advertencia: el esquema «org.gnome.system.proxy» tiene la ruta «/system/proxy/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] Advertencia: el esquema «org.gnome.system.proxy.http» tiene la ruta «/system/proxy/http/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] Advertencia: el esquema «org.gnome.system.proxy.https» tiene la ruta «/system/proxy/https/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] Advertencia: el esquema «org.gnome.system.proxy.ftp» tiene la ruta «/system/proxy/ftp/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] Advertencia: el esquema «org.gnome.system.proxy.socks» tiene la ruta «/system/proxy/socks/».  Las rutas que empiezan por «/apps/», «/desktop/» o «/system/» están obsoletas.
+[gtk/stderr] No existe la clave «picture-uri-dark» en el esquema «org.gnome.desktop.screensaver» como se especificó en el archivo de sobrescritura «/home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir//usr/share/glib-2.0/schemas/10_org.gnome.desktop.screensaver.fedora.gschema.override»; se ignora para esta clave.
+[gtk/stdout] Updating immodules cache in /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir//usr/lib64/gtk-3.0/3.0.0/immodules.cache
+[gtk/stderr] /home/nef734/.cache/tauri/linuxdeploy-plugin-gtk.sh: there is no 'libdir' variable for 'librsvg-2.0' library.
+[gtk/stdout] Installing GDK PixBufs
+[gtk/stdout] Updating pixbuf cache in /home/nef734/Documentos/Proyectos/gowerGUI/src-tauri/target/release/bundle/appimage/gowerui.AppDir//usr/lib64/gdk-pixbuf-2.0/2.10.0/loaders.cache
+[gtk/stdout] Copying more libraries
+[gtk/stderr] Please check the 'librsvg-2.0.pc' file is present in $PKG_CONFIG_PATH (you may need to install the appropriate -dev/-devel package).
+ERROR: Failed to run plugin: gtk (exit code: 1)
+failed to bundle project `failed to run /home/nef734/.cache/tauri/linuxdeploy-x86_64.AppImage`
+       Error [tauri_cli_node] failed to bundle project `failed to run /home/nef734/.cache/tauri/linuxdeploy-x86_64.AppImage`

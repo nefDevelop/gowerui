@@ -1,0 +1,14 @@
+node_modules
+.svelte-kit
+build
+src-tauri/target
+src-tauri/binaries
+dist
+.git
+.vscode
+.devcontainer
+*.txt
+*.log
+build_log.txt
+verbose_build_log.txt
+build_exit_code.txt
