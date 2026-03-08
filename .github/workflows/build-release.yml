@@ -70,7 +70,6 @@ jobs:
           echo "Fetching latest release from $REPO..."
           LATEST_RELEASE_JSON=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/$REPO/releases/latest)
           GOWER_VERSION=$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | head -n 1 | cut -d '"' -f 4)
-          echo "Latest Gower version: $GOWER_VERSION"
           
           if [[ "${{ matrix.platform }}" == "ubuntu-22.04" ]]; then
             DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower\"" | head -n 1 | cut -d '"' -f 4)
@@ -78,18 +77,15 @@ jobs:
             DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower.exe\"" | head -n 1 | cut -d '"' -f 4)
           fi
           
-          echo "Downloading from: $DOWNLOAD_URL"
           curl -L -H "Authorization: token $GH_TOKEN" "$DOWNLOAD_URL" -o src-tauri/binaries/${{ matrix.sidecar_name }}
           chmod +x src-tauri/binaries/${{ matrix.sidecar_name }} || true
           echo "{\"version\": \"$GOWER_VERSION\", \"repo\": \"$REPO\", \"binary\": \"${{ matrix.binary_name }}\"}" > src/lib/sidecar-info.json
 
       - name: build tauri app
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          includeRelease: false
-          args: --target ${{ matrix.target }}
+        shell: bash
+        run: |
+          # Manual build to ensure binaries are created and visible
+          npm run tauri build -- --target ${{ matrix.target }}
 
       - name: package portable (linux)
         if: matrix.platform == 'ubuntu-22.04'
@@ -97,8 +93,9 @@ jobs:
         run: |
           set -x
           mkdir -p gowerui-linux-portable
-          # Try common paths for the binary
-          cp src-tauri/target/${{ matrix.target }}/release/gowerui gowerui-linux-portable/ || cp src-tauri/target/release/gowerui gowerui-linux-portable/
+          # Robust binary discovery
+          BINARY_PATH=$(find src-tauri/target -name gowerui -type f | grep release | grep -v bundle | grep -v deps | head -n 1)
+          cp "$BINARY_PATH" gowerui-linux-portable/
           cp src-tauri/binaries/gower-x86_64-unknown-linux-gnu gowerui-linux-portable/gower
           cp src-tauri/icons/128x128.png gowerui-linux-portable/icon.png
           
@@ -122,9 +119,9 @@ jobs:
           tar -czf gowerui-linux-portable.tar.gz gowerui-linux-portable/
           
           mkdir -p final-assets
-          cp src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb final-assets/ || true
-          cp src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm final-assets/ || true
-          cp src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage final-assets/ || true
+          find src-tauri/target -name "*.deb" -exec cp {} final-assets/ \;
+          find src-tauri/target -name "*.rpm" -exec cp {} final-assets/ \;
+          find src-tauri/target -name "*.AppImage" -exec cp {} final-assets/ \;
           cp gowerui-linux-portable.tar.gz final-assets/
 
       - name: package portable (windows)
@@ -133,13 +130,14 @@ jobs:
         run: |
           set -x
           mkdir -p gowerui-windows-portable
-          # Explicit paths for Windows
-          cp src-tauri/target/${{ matrix.target }}/release/gowerui.exe gowerui-windows-portable/ || cp src-tauri/target/release/gowerui.exe gowerui-windows-portable/
+          # Robust binary discovery for Windows (using Git Bash find in the runner)
+          BINARY_PATH=$(find src-tauri/target -name gowerui.exe -type f | grep release | grep -v bundle | grep -v deps | head -n 1)
+          cp "$BINARY_PATH" gowerui-windows-portable/
           cp src-tauri/binaries/gower-x86_64-pc-windows-msvc.exe gowerui-windows-portable/gower.exe
           7z a gowerui-windows-portable.zip gowerui-windows-portable/
           
           mkdir -p final-assets
-          cp src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe final-assets/ || cp src-tauri/target/release/bundle/nsis/*.exe final-assets/ || true
+          find src-tauri/target -name "*.exe" ! -name "gowerui.exe" ! -name "gower.exe" -exec cp {} final-assets/ \;
           cp gowerui-windows-portable.zip final-assets/
 
       - name: upload all assets to release
