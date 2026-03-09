@@ -17,7 +17,9 @@ RUN apt-get update && apt-get install -y \
     libappindicator3-dev \
     librsvg2-dev \
     patchelf \
-    base-files
+    base-files \
+    nsis \
+    unzip
 
 # Install Node.js
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
@@ -29,6 +31,16 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Add the Windows GNU target
 RUN rustup target add x86_64-pc-windows-gnu
+
+# Download and extract WebView2 SDK for cross-compilation
+# This is needed for the linker to find WebView2Loader.dll.lib
+RUN mkdir -p /webview2-sdk && \
+    curl -L https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/1.0.1264.42 -o webview2.zip && \
+    unzip webview2.zip -d /webview2-sdk && \
+    rm webview2.zip
+
+# Set WebView2 path environment variable
+ENV WEBVIEW2_WIN32_PATH=/webview2-sdk/build/native/x64
 
 WORKDIR /app
 

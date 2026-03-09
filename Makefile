@@ -40,5 +40,18 @@ docker-linux:
 	docker run --rm -v $(PWD)/src-tauri/target:/app/src-tauri/target gowerui-linux
 
 docker-windows:
+	@echo "--- Starting Windows Build in Docker ---"
 	docker build -t gowerui-windows -f Dockerfile.windows .
 	docker run --rm -v $(PWD)/src-tauri/target:/app/src-tauri/target gowerui-windows
+	@echo "--- Organizing Release Files ---"
+	@mkdir -p dist-releases/windows
+	@# Copy the Installer
+	@cp src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis/*.exe dist-releases/windows/ 2>/dev/null || echo "No installer found"
+	@# Run the portable script to gather all files
+	@chmod +x dist-windows-portable.sh
+	@./dist-windows-portable.sh
+	@mv dist-windows-portable dist-releases/windows/portable
+	@echo "--------------------------------------------------"
+	@echo "DONE! Your Windows files are ready in: dist-releases/windows/"
+	@ls -R dist-releases/windows/
+	@echo "--------------------------------------------------"
