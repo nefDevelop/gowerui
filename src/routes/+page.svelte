@@ -123,8 +123,9 @@
 
     /**
      * @param {boolean} [reset]
+     * @param {boolean} [skipColors]
      */
-    async function loadHome(reset = false) {
+    async function loadHome(reset = false, skipColors = false) {
         if (!appContext) return;
         if (reset) {
             feedPage = 1;
@@ -133,16 +134,21 @@
         if (feedModel.length === 0) loading = true;
 
         try {
-            // Fetch feed and colors in parallel
-            const [result, colorsResult] = await Promise.all([
+            // Fetch feed and colors in parallel, or just feed
+            const tasks = [
                 gower.getFeed(
                     feedPage,
-                    9,
+                    10, // Buffer: fetch 10 to show 9
                     selectedColor,
                     currentSort.toLowerCase(),
-                ),
-                gower.getFeedColors(),
-            ]);
+                )
+            ];
+            
+            if (!skipColors) {
+                tasks.push(gower.getFeedColors());
+            }
+
+            const [result, colorsResult] = await Promise.all(tasks);
 
             /** @type {any[]} */
             let newItems = mapThumbnails(result || [], appContext.cache_path);
@@ -151,7 +157,7 @@
 
             feedModel = newItems;
 
-            if (Array.isArray(colorsResult)) {
+            if (!skipColors && Array.isArray(colorsResult)) {
                 feedColors = colorsResult;
             }
         } catch (e) {
@@ -162,21 +168,26 @@
     }
 
     let favoritesLoading = $state(false);
-    async function loadFavorites() {
+    /**
+     * @param {boolean} [skipColors]
+     */
+    async function loadFavorites(skipColors = false) {
         if (!appContext || favoritesLoading) return;
 
         // Show loading only if empty to avoid flicker
         if (favoritesModel.length === 0) favoritesLoading = true;
 
         try {
-            const [result, colorsResult] = await Promise.all([
-                gower.getFavorites(selectedColor),
-                gower.getFavoritesColors(),
-            ]);
+            const tasks = [gower.getFavorites(selectedColor)];
+            if (!skipColors) {
+                tasks.push(gower.getFavoritesColors());
+            }
+
+            const [result, colorsResult] = await Promise.all(tasks);
 
             favoritesModel = mapThumbnails(result || [], appContext.cache_path);
 
-            if (Array.isArray(colorsResult)) {
+            if (!skipColors && Array.isArray(colorsResult)) {
                 favoritesColors = colorsResult;
             }
         } catch (e) {
@@ -189,14 +200,17 @@
     async function loadCurrentWallpapers() {
         if (!appContext) return;
         try {
-            const result = await gower.getCurrentWallpapers();
+            const result = await gower.getStatus();
             if (result && result.wallpaper && result.wallpaper.wallpapers) {
                 currentWallpapers = mapThumbnails(
                     result.wallpaper.wallpapers,
                     appContext.cache_path,
                 );
             }
-            await loadMonitors();
+            // Optimization: Don't reload monitors every time we refresh wallpapers
+            if (monitors.length === 0) {
+                await loadMonitors();
+            }
         } catch (e) {
             console.error("Failed to load current wallpapers:", e);
         }
@@ -244,7 +258,7 @@
         const snap = $state.snapshot(item);
         try {
             await gower.blacklist(snap.id);
-            // Visual feedback: remove from models
+            // Visual feedback: remove from models immediately for responsiveness
             feedModel = feedModel.filter((i) => i.id !== snap.id);
             if (searchResults) {
                 searchResults = searchResults.filter((i) => i.id !== snap.id);
@@ -252,12 +266,7 @@
             favoritesModel = favoritesModel.filter((i) => i.id !== snap.id);
             notify("Imagen añadida a la lista negra", "success");
 
-            // Trigger reload to fill gaps and sync state
-            if (currentTab === "home") {
-                loadHome();
-            } else if (currentTab === "favorites") {
-                loadFavorites();
-            }
+            // Real refresh will happen via 'gower-command-finished' listener
         } catch (e) {
             notify("Error al añadir a la lista negra", "error");
             console.error("Failed to blacklist item:", e);
@@ -511,6 +520,12 @@
     async function confirmDelete(item) {
         if (!item) return;
         try {
+            // Check which monitor(s) are using this wallpaper by matching ID
+            // currentWallpapers[i] maps to monitors[i]
+            const affectedMonitorIndices = currentWallpapers
+                .map((curr, idx) => (curr.id === item.id ? idx : -1))
+                .filter((idx) => idx !== -1);
+
             await gower.deleteWallpaper(item.id);
 
             // Update models locally
@@ -519,8 +534,19 @@
                 (i) => i.id !== item.id,
             );
 
+            // If it was active, set a new random one for each affected monitor
+            if (affectedMonitorIndices.length > 0 && monitors.length > 0) {
+                notify("Actualizando fondo de escritorio...", "info");
+                for (const idx of affectedMonitorIndices) {
+                    const monitorId = monitors[idx]?.ID;
+                    if (monitorId) {
+                        await gower.setRandom(monitorId);
+                    }
+                }
+            }
+
             // Refresh to fill the grid (refetch the current page)
-            await loadHome(false);
+            // Real refresh will happen via 'gower-command-finished' listener
         } catch (e) {
             console.error("Failed to delete wallpaper:", e);
         }
@@ -656,41 +682,53 @@
 
         init();
 
-        // Status polling every 10 seconds
+        // Status polling every 15 seconds as fallback
         const pollInterval = setInterval(() => {
-            // loadConfig(); // Config also contains status in some apps, but let's be sure
-            // loadCurrentWallpapers(); // This also calls getStatus internally usually
-            // refreshStatus() // If we had one, but loadConfig/loadCurrentWallpapers update the models
-        }, 10000);
+            loadCurrentWallpapers();
+            if (currentTab === "settings") loadConfig();
+        }, 15000);
 
         // Listen for background command completions to refresh UI
         const unlistenCommand = listen("gower-command-finished", (event) => {
             const args = /** @type {string[]} */ (event.payload);
             console.log("[BG_REFRESH] Command finished, refreshing UI:", args);
 
-            // Intelligent refresh based on command
-            if (args.includes("set") || args.includes("undo")) {
+            const isBlacklist = args.includes("blacklist");
+            const isSet = args.includes("set");
+
+            // 1. Refresh current wallpapers if something changed that could affect them
+            if (
+                isSet ||
+                args.includes("undo") ||
+                args.includes("wallpaper") ||
+                isBlacklist
+            ) {
                 loadCurrentWallpapers();
             }
-            if (args.includes("favorites") || args.includes("blacklist")) {
-                loadFavorites();
+
+            // 2. Refresh favorites if favorites or blacklist changed
+            if (args.includes("favorites") || isBlacklist) {
+                // Phase 1: Quick fill
+                loadFavorites(isBlacklist);
+                // Phase 2: Background color recalculation if it was a blacklist (only if visible)
+                if (isBlacklist && currentTab === "favorites") {
+                    setTimeout(() => loadFavorites(false), 500);
+                }
             }
 
-            // Handle download completion specifically to mark items as downloaded in UI
-            // Instead of setting a client-side flag, trigger a reload to fetch the updated path from the backend.
-            if (args.includes("download")) {
-                // Reload relevant data to reflect the new path from the backend
-                loadHome(); // Assuming downloaded items might appear in home/feed
-                loadFavorites(); // Assuming downloaded items might be favorites
-                // searchResults will be reloaded on next search if needed
-                
-            }
-
+            // 3. Refresh home feed if it might have changed
             if (
-                args.includes("feed") &&
-                (args.includes("update") || args.includes("download"))
+                isBlacklist ||
+                args.includes("wallpaper") ||
+                (args.includes("feed") && (args.includes("update") || args.includes("download"))) ||
+                args.includes("download")
             ) {
-                loadHome();
+                // Phase 1: Quick fill
+                loadHome(false, isBlacklist);
+                // Phase 2: Background color recalculation if it was a blacklist (only if visible)
+                if (isBlacklist && currentTab === "home") {
+                    setTimeout(() => loadHome(false, false), 500);
+                }
             }
         });
 
@@ -930,7 +968,6 @@
                             onclick={async () => {
                                 await gower.blacklist(previewItem.id);
                                 previewOpen = false;
-                                await loadHome(false);
                             }}
                             title="Añadir a lista negra"
                             class="action-btn block"

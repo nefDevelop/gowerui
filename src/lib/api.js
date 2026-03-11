@@ -106,38 +106,27 @@ export function mapThumbnails(items, cachePath) {
     // Priority: thumbnail -> url -> path (absolute) -> id/ext (cache)
     let thumbnailSource = newItem.thumbnail || newItem.url || newItem.path || "";
 
-    console.log(`[mapThumbnails] Processing item ${newItem.id}. Initial thumbnailSource: ${thumbnailSource}`);
-
     if (thumbnailSource.startsWith("http") || thumbnailSource.startsWith("asset:") || thumbnailSource.startsWith("https://asset.")) {
       // Already a valid URL or asset URL, keep it
       newItem.thumbnail = thumbnailSource;
-      console.log(`[mapThumbnails] Item ${newItem.id}: Thumbnail is already a valid URL: ${newItem.thumbnail}`);
     } else if (
       thumbnailSource !== "" &&
       (thumbnailSource.startsWith("/") || thumbnailSource.startsWith("C:\\") || thumbnailSource.startsWith("\\"))
     ) {
       // It's an absolute local path, convert it to a Tauri asset URL.
-      // convertFileSrc should handle platform-specific prefixes like asset://localhost.
-      const originalLocalPath = thumbnailSource; // Store the original local path
+      const originalLocalPath = thumbnailSource;
       newItem.thumbnail = convertFileSrc(originalLocalPath);
-      newItem.path = originalLocalPath; // Ensure newItem.path is set if it's a local file
-      console.log(
-        `[mapThumbnails] Item ${newItem.id}: Original local path: ${originalLocalPath}, converted to asset URL: ${newItem.thumbnail}`,
-      );
+      newItem.path = originalLocalPath;
     } else if (item.id && item.ext) {
       // Use cache fallback
       const ext = item.ext.startsWith(".") ? item.ext : `.${item.ext}`;
       const fullPath = `${cachePath}/thumbs/${item.id}${ext}`;
-      const originalCachePath = fullPath; // Store the original cache path
+      const originalCachePath = fullPath;
       newItem.thumbnail = convertFileSrc(originalCachePath);
-      newItem.path = originalCachePath; // Ensure newItem.path is set if it's a cached file
-      console.log(
-        `[mapThumbnails] Item ${newItem.id}: Original cache path: ${originalCachePath}, converted to asset URL: ${newItem.thumbnail}`,
-      );
+      newItem.path = originalCachePath;
     } else {
       // No valid path found
       newItem.thumbnail = "";
-      console.log(`[mapThumbnails] Item ${newItem.id}: No valid thumbnail source found. Setting to empty string.`);
     }
 
     return newItem;
@@ -162,6 +151,14 @@ export const gower = {
     const args = ["set", idOrUrl];
     if (monitor) args.push("--target-monitor", monitor);
     return runGower(args, false, true); // Background
+  },
+  /**
+   * @param {string} [monitor]
+   */
+  setRandom: (monitor = "") => {
+    const args = ["set", "random"];
+    if (monitor) args.push("--target-monitor", monitor);
+    return runGower(args, false, true);
   },
   updateFeed: () => runGower(["feed", "update"], false, true), // Background
   /**

@@ -17,24 +17,6 @@
     /** @type {Set<string>} */
     const notifiedErrors = new Set();
 
-    /** @type {Record<string, boolean>} */
-    let downloadedStatus = $state({});
-
-    $effect(() => {
-        // Verificar existencia de archivos cuando cambian los items
-        items.forEach(async (item) => {
-            if (item.path) {
-                try {
-                    const fileExists = await checkFileExists(item.path);
-                    downloadedStatus[item.id] = fileExists;
-                } catch (e) {
-                    console.error(`Error checking file ${item.path}:`, e);
-                    downloadedStatus[item.id] = false;
-                }
-            }
-        });
-    });
-
     /**
      * @param {string} id
      */
@@ -42,7 +24,6 @@
         if (!notifiedErrors.has(id)) {
             console.error(`[GOWER] Image failed to load for ID: ${id}. Thumbnail URL: ${items.find(i => i.id === id)?.thumbnail}, Path: ${items.find(i => i.id === id)?.path}`);
             notifiedErrors.add(id);
-            console.error(`[GOWER] Error loading image: ${id}`);
         }
     }
 
@@ -71,34 +52,22 @@
      */
     function isDownloaded(item) {
         if (!item || !item.path) {
-            if (type === "favorites") console.log(`[isDownloaded] ${item?.id}: false (no path)`);
             return false;
         }
 
-        // Check physical existence first (cached from effect)
-        if (downloadedStatus[item.id] === false) {
-            if (type === "favorites") console.log(`[isDownloaded] ${item.id}: false (file not found on disk)`);
-            return false;
-        }
-
-        // A wallpaper is considered downloaded if it has a local path
-        // and that path starts with the configured collection path.
+        // Optimization: If it has a local path and we are in favorites or home (local collection),
+        // we assume it exists to avoid heavy IPC calls.
         const path = item.path || "";
         const cleanCollection = collectionPath
             ? collectionPath.replace(/\/$/, "")
             : "";
         const cleanPath = path ? path.replace(/\/$/, "") : "";
 
-        // If collection path is not set, or path matches collection, assume downloaded if it exists
         if (!cleanCollection) {
-            const res = !!downloadedStatus[item.id];
-            if (type === "favorites") console.log(`[isDownloaded] ${item.id}: ${res} (no collection path set, relying on existence)`);
-            return res;
+            return true; // If no collection path, but has path, assume it's downloaded/local
         }
 
-        const startsWith = cleanCollection && cleanPath.startsWith(cleanCollection);
-        if (type === "favorites") console.log(`[isDownloaded] ${item.id}: ${startsWith} (path: ${cleanPath}, collection: ${cleanCollection})`);
-        return startsWith;
+        return cleanPath.startsWith(cleanCollection);
     }
 </script>
 

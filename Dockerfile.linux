@@ -47,8 +47,4 @@ RUN npm install
 RUN mkdir -p /export
 
 CMD ["sh", "-c", "npm run tauri build -- --verbose; \
-    mkdir -p /export/portable; \
-    cp src-tauri/target/release/gowerui /export/portable/ 2>/dev/null; \
-    cp src-tauri/binaries/gower* /export/portable/ 2>/dev/null; \
-    cp src-tauri/target/release/bundle/appimage/*.AppImage /export/ 2>/dev/null; \
-    echo 'Exportación finalizada. Revisa la carpeta dist-appimage en tu host.'"]
+    echo 'Exportación finalizada. Los archivos (deb, rpm, portable) están en src-tauri/target.'"]
