@@ -20,6 +20,9 @@
     // Reactive Set for O(1) lookups and guaranteed reactivity
     let favoriteIds = $derived(new Set(favoritesList.map(f => normalizeId(f.id))));
 
+    // Estado optimista para elementos recién descargados en esta sesión
+    let recentlyDownloaded = $state([]);
+
     /**
      * @param {string} id
      */
@@ -43,6 +46,7 @@
      */
     function isDownloaded(item) {
         if (!item) return false;
+        if (recentlyDownloaded.includes(item.id)) return true; // Optimistic check
         if (item.source === "local") return true;
         if (!item.path) return false;
         
@@ -139,6 +143,7 @@
                         <button
                             onclick={(e) => {
                                 e.stopPropagation();
+                            recentlyDownloaded.push(item.id); // Guardamos el ID instantáneamente
                                 dispatch("download", item);
                             }}
                             title={$t("grid.download")}
