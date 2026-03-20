@@ -100,7 +100,7 @@
 
             lastSearchTime = Date.now();
         } catch (e) {
-            console.error("[SEARCH] Error:", e);
+            // console.error("[SEARCH] Error:", e);
         } finally {
             loading = false;
         }

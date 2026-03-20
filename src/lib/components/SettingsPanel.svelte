@@ -9,7 +9,7 @@
     let { config = $bindable(), status } = $props();
 
     const dispatch = createEventDispatcher();
-
+    
     let showProviders = $state(false);
     let newProvider = $state({ name: "", url: "", key: "" });
     let hasBattery = $state(false);
@@ -49,7 +49,7 @@
                 isDaemonTransitioning = false;
             }, 1000);
         } catch (err) {
-            console.error("Daemon toggle failed:", err);
+            // console.error("Daemon toggle failed:", err);
             isDaemonTransitioning = false;
             dispatch("refresh");
         }
@@ -68,7 +68,7 @@
                 updateConfig("paths.wallpapers", selected);
             }
         } catch (e) {
-            console.error("Failed to open dialog:", e);
+            // console.error("Failed to open dialog:", e);
         }
     }
 </script>
@@ -239,7 +239,7 @@
                     <input
                         type="number"
                         value={config?.power?.low_battery_threshold || 20}
-                        onchange={(e) =>
+                    onchange={(e) =>
                             updateConfig(
                                 "power.low_battery_threshold",
                                 parseInt(
@@ -581,14 +581,9 @@
                     <button
                         class="btn-danger"
                         onclick={async () => {
-                            const name = providerToDelete.key;
-                            console.log("[SETTINGS] Removing provider:", name);
+                            const name = providerToDelete.key; // Keep for context
                             try {
                                 const result = await gower.removeProvider(name);
-                                console.log(
-                                    "[SETTINGS] Remove result:",
-                                    result,
-                                );
                                 providerToDelete.open = false;
                                 dispatch("refresh");
                             } catch (e) {

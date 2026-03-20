@@ -2,7 +2,7 @@
     import { createEventDispatcher } from "svelte";
     import { t } from "$lib/stores/i18n";
     import { fade } from "svelte/transition";
-    import { checkFileExists } from "$lib/api";
+    import { checkFileExists, normalizeId } from "$lib/api";
 
     let {
         items = [],
@@ -17,6 +17,9 @@
     /** @type {Set<string>} */
     const notifiedErrors = new Set();
 
+    // Reactive Set for O(1) lookups and guaranteed reactivity
+    let favoriteIds = $derived(new Set(favoritesList.map(f => normalizeId(f.id))));
+
     /**
      * @param {string} id
      */
@@ -28,46 +31,48 @@
     }
 
     /**
-     * @param {string} id
-     * @returns {string}
+     * @param {any} item
      */
-    function normalizeId(id) {
-        if (!id) return "";
-        // Clean ID: Remove provider prefixes/suffixes
-        return String(id)
-            .replace(/^(wh_|wallhaven_|reddit_|rd_|bing_|unsplash_|nasa_)/, "")
-            .split(/[?#.]/)[0]; // Remove extensions or URLs params
-    }
-
-    /**
-     * @param {string} id
-     */
-    function isFavorite(id) {
-        const nid = normalizeId(id);
-        return favoritesList.some((f) => normalizeId(f.id) === nid);
+    function isFavorite(item) {
+        if (!item || !item.id) return false;
+        return favoriteIds.has(normalizeId(item.id));
     }
 
     /**
      * @param {any} item
      */
     function isDownloaded(item) {
-        if (!item || !item.path) {
-            return false;
+        if (!item) return false;
+        if (item.source === "local") return true;
+        if (!item.path) return false;
+        
+        const pathStr = item.path || "";
+        const cleanCollection = (collectionPath || "").replace(/[\\/]$/, "");
+        const cleanPath = pathStr.replace(/[\\/]$/, "");
+        
+        if (cleanCollection && cleanPath.startsWith(cleanCollection)) {
+            return true;
         }
 
-        // Optimization: If it has a local path and we are in favorites or home (local collection),
-        // we assume it exists to avoid heavy IPC calls.
-        const path = item.path || "";
-        const cleanCollection = collectionPath
-            ? collectionPath.replace(/\/$/, "")
-            : "";
-        const cleanPath = path ? path.replace(/\/$/, "") : "";
-
-        if (!cleanCollection) {
-            return true; // If no collection path, but has path, assume it's downloaded/local
+        if (cleanPath.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(cleanPath)) {
+            if (!cleanPath.includes("/cache/") && !cleanPath.includes("\\cache\\")) {
+                return true;
+            }
         }
 
-        return cleanPath.startsWith(cleanCollection);
+        return false;
+    }
+
+    /**
+     * @param {any} item
+     */
+    function handleWallpaperClick(item) {
+        console.log(`[Wallpaper Click] ID: ${item.id}`);
+        console.log(`  - Is Favorite: ${isFavorite(item)}`);
+        console.log(`  - Is Downloaded: ${isDownloaded(item)}`);
+        console.log(`  - Source: ${item.source}`);
+        console.log(`  - Path: ${item.path}`);
+        dispatch("preview", item);
     }
 </script>
 
@@ -75,14 +80,14 @@
     {#each items as item (item.id)}
         <div
             class="card glass-card"
-            onclick={() => dispatch("preview", item)}
+            onclick={() => handleWallpaperClick(item)}
             oncontextmenu={(e) => {
                 e.preventDefault();
                 dispatch("contextmenu", { item, x: e.clientX, y: e.clientY });
             }}
             role="button"
             tabindex="0"
-            onkeydown={(e) => e.key === "Enter" && dispatch("preview", item)}
+            onkeydown={(e) => e.key === "Enter" && handleWallpaperClick(item)}
         >
             <img
                 src={item.thumbnail}
@@ -117,17 +122,15 @@
                                 e.stopPropagation();
                                 dispatch("favorite", item);
                             }}
-                            title={isFavorite(item.id)
-                                ? $t("grid.remove_from_favorites")
-                                : $t("grid.add_to_favorites")}
+                            title={isFavorite(item)
+                                ? $t("grid.remove_from_favorites") : $t("grid.add_to_favorites")
+                            }
                         >
-                            <span
+                            <span 
                                 class="material-icons"
-                                class:active={isFavorite(item.id)}
+                                class:active={isFavorite(item)}
                             >
-                                {isFavorite(item.id)
-                                    ? "favorite"
-                                    : "favorite_border"}
+                                {isFavorite(item) ? "favorite" : "favorite_border"}
                             </span>
                         </button>
                     {/if}
@@ -160,7 +163,7 @@
                 </div>
             </div>
 
-            {#if isFavorite(item.id) && type !== "favorites"}
+            {#if isFavorite(item) && type !== "favorites"}
                 <div class="fav-badge">
                     <span class="material-icons">favorite</span>
                 </div>

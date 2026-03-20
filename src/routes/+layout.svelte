@@ -9,12 +9,12 @@
   let { children } = $props();
 
   onMount(() => {
-    console.log("[Layout] Initializing theme store:", $theme);
+    // console.log("[Layout] Initializing theme store:", $theme);
     // Listen for theme sync event from tray
     const unlisten = listen("window-shown", () => {
-      console.log(
-        "[Layout] Received window-shown from Rust, notifying app.html...",
-      );
+      // console.log(
+      //   "[Layout] Received window-shown from Rust, notifying app.html...",
+      // );
       document.dispatchEvent(new CustomEvent("window-shown"));
     });
 

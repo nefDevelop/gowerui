@@ -2,7 +2,7 @@
     import { onMount, tick, untrack } from "svelte";
     import { t } from "$lib/stores/i18n";
     import { theme } from "$lib/stores/theme";
-    import { gower, getAppContext, mapThumbnails, checkFileExists } from "$lib/api";
+    import { gower, getAppContext, mapThumbnails, checkFileExists, normalizeId } from "$lib/api";
     import { fade } from "svelte/transition";
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import { listen } from "@tauri-apps/api/event";
@@ -14,7 +14,7 @@
     import CurrentWallpapersBar from "$lib/components/CurrentWallpapersBar.svelte";
     import DeleteDialog from "$lib/components/DeleteDialog.svelte";
     import WallpaperGrid from "$lib/components/WallpaperGrid.svelte";
-
+    import { notifications as notificationsStore } from "$lib/stores/notifications";
     let currentTab = $state("home");
     /** @type {any[]} */
     let feedModel = $state([]);
@@ -30,6 +30,8 @@
     let appContext = $state(null);
 
     let feedPage = $state(1);
+    let favoritesPage = $state(1); // New state for favorites pagination
+    let favoritesCurrentSort = $state("Smart"); // New state for favorites sort
     let currentSort = $state("Smart");
     let selectedColor = $state("");
     /** @type {string[]} */
@@ -61,45 +63,16 @@
         }
     });
 
-    // Dialog State
-    let deleteDialogOpen = $state(false);
-    let itemToDelete = $state(null);
-
     // Modal & Context Menu State
     /** @type {any} */
     let previewItem = $state(null);
     let previewOpen = $state(false);
     /** @type {any} */
     let contextMenu = $state({ open: false, x: 0, y: 0, item: null });
-
-    const appWindow = getCurrentWindow();
-
-    /** @type {any[]} */
-    let notifications = $state([]);
-
-    /**
-     * @param {string} message
-     * @param {'success' | 'error' | 'info' | 'loading'} type
-     * @param {number} [existingId]
-     */
-    function notify(message, type = "success", existingId = undefined) {
-        const id = existingId || Date.now();
-        const notification = { id, message, type };
-
-        const index = notifications.findIndex((n) => n.id === id);
-        if (index !== -1) {
-            notifications[index] = notification;
-        } else {
-            notifications.push(notification);
-        }
-
-        if (type !== "loading") {
-            setTimeout(() => {
-                notifications = notifications.filter((n) => n.id !== id);
-            }, 3500);
-        }
-        return id;
-    }
+    
+    // Dialog State
+    let deleteDialogOpen = $state(false);
+    let itemToDelete = $state(null);
 
     const sortOptions = [
         { value: "Smart", label: "sort.smart" },
@@ -160,8 +133,9 @@
             if (!skipColors && Array.isArray(colorsResult)) {
                 feedColors = colorsResult;
             }
+            console.log("[loadHome] Feed cargado. Items:", newItems.length);
         } catch (e) {
-            console.error("Error loading home feed:", e);
+            console.error("[loadHome] Error al cargar feed:", e);
         } finally {
             loading = false;
         }
@@ -170,15 +144,16 @@
     let favoritesLoading = $state(false);
     /**
      * @param {boolean} [skipColors]
+     * @param {number} [page]
+     * @param {string} [sort]
      */
-    async function loadFavorites(skipColors = false) {
+    async function loadFavorites(skipColors = false, page = favoritesPage, sort = favoritesCurrentSort.toLowerCase()) {
         if (!appContext || favoritesLoading) return;
 
         // Show loading only if empty to avoid flicker
         if (favoritesModel.length === 0) favoritesLoading = true;
-
         try {
-            const tasks = [gower.getFavorites(selectedColor)];
+            const tasks = [gower.getFavorites(page, 9, selectedColor, sort)]; // Use page, limit, color, sort
             if (!skipColors) {
                 tasks.push(gower.getFavoritesColors());
             }
@@ -190,8 +165,9 @@
             if (!skipColors && Array.isArray(colorsResult)) {
                 favoritesColors = colorsResult;
             }
+            console.log("[loadFavorites] Favoritos cargados. Items:", favoritesModel.length);
         } catch (e) {
-            console.error("Error loading favorites:", e);
+            console.error("[loadFavorites] Error al cargar favoritos:", e);
         } finally {
             favoritesLoading = false;
         }
@@ -211,8 +187,9 @@
             if (monitors.length === 0) {
                 await loadMonitors();
             }
+            console.log("[loadCurrentWallpapers] Actuales cargados:", currentWallpapers.length);
         } catch (e) {
-            console.error("Failed to load current wallpapers:", e);
+            console.error("[loadCurrentWallpapers] Error:", e);
         }
     }
 
@@ -224,7 +201,7 @@
                 monitors = result.monitors;
             }
         } catch (e) {
-            console.error("Failed to load monitors:", e);
+            console.error("[loadMonitors] Error:", e);
         }
     }
 
@@ -245,8 +222,8 @@
             await gower.setWallpaper(target, monitorId);
             contextMenu.open = false;
             // Refreshed via background event
-        } catch (e) {
-            console.error(e);
+        } catch (e) { // Keep error for user feedback
+            notificationsStore.add("Error al establecer wallpaper", "error");
         }
     }
 
@@ -257,6 +234,11 @@
         if (!item) return;
         const snap = $state.snapshot(item);
         try {
+            // Check which monitor(s) are using this wallpaper by matching ID
+            const affectedMonitorIndices = currentWallpapers
+                .map((curr, idx) => (curr.id === snap.id ? idx : -1))
+                .filter((idx) => idx !== -1);
+
             await gower.blacklist(snap.id);
             // Visual feedback: remove from models immediately for responsiveness
             feedModel = feedModel.filter((i) => i.id !== snap.id);
@@ -264,11 +246,22 @@
                 searchResults = searchResults.filter((i) => i.id !== snap.id);
             }
             favoritesModel = favoritesModel.filter((i) => i.id !== snap.id);
-            notify("Imagen añadida a la lista negra", "success");
+            currentWallpapers = currentWallpapers.filter((i) => i.id !== snap.id);
+            notificationsStore.add("Imagen añadida a la lista negra", "success");
 
+            // If it was active, set a new random one for each affected monitor
+            if (affectedMonitorIndices.length > 0 && monitors.length > 0) {
+                notificationsStore.add("Actualizando fondo de escritorio...", "info");
+                for (const idx of affectedMonitorIndices) {
+                    const monitorId = monitors[idx]?.ID;
+                    if (monitorId) {
+                        await gower.setRandom(monitorId);
+                    }
+                }
+            }
             // Real refresh will happen via 'gower-command-finished' listener
         } catch (e) {
-            notify("Error al añadir a la lista negra", "error");
+            notificationsStore.add("Error al añadir a la lista negra", "error");
             console.error("Failed to blacklist item:", e);
         }
     }
@@ -279,35 +272,15 @@
     async function handleDownload(item) {
         if (!item) return;
         const snap = $state.snapshot(item);
-        const nid = notify("Descargando...", "loading");
+        const nid = notificationsStore.add("Descargando...", "loading");
         try {
             await gower.download(snap.id);
-            notify("Descarga iniciada", "success", nid);
+            notificationsStore.add("Descarga iniciada", "success", nid);
             // Refresh feed happens via background event
-        } catch (e) {
-            notify("Error al descargar", "error", nid);
+        } catch (e) { // Keep error for user feedback
+            notificationsStore.add("Error al descargar", "error", nid);
             console.error("Download failed:", e);
         }
-    }
-
-    /**
-     * @param {string} id
-     * @returns {string}
-     */
-    function normalizeId(id) {
-        if (!id) return "";
-        // ID is now stable, but we still strip provider prefixes for consistent comparison
-        return String(id)
-            .replace(/^(wh_|wallhaven_|reddit_|rd_|bing_|unsplash_|nasa_)/, "")
-            .split(/[?#.]/)[0];
-    }
-
-    /**
-     * @param {string} id
-     */
-    function isFavorite(id) {
-        const nid = normalizeId(id);
-        return favoritesModel.some((f) => normalizeId(f.id) === nid);
     }
 
     /**
@@ -320,7 +293,7 @@
             for (const m of monitors) {
                 await gower.setWallpaper(item.id, m.ID);
             }
-            contextMenu.open = false;
+            contextMenu.open = false; // Close context menu after action
         } catch (e) {
             console.error(e);
         } finally {
@@ -335,7 +308,7 @@
         if (!item || !item.url) return;
         try {
             await gower.openPath(item.url);
-            contextMenu.open = false;
+            contextMenu.open = false; // Close context menu after action
         } catch (e) {
             console.error(e);
         }
@@ -359,19 +332,18 @@
                 // Check if it belongs to the collection
                 if (collectionPath && pathOrUrl.startsWith(collectionPath)) {
                     await gower.openPath(pathOrUrl);
-                    notify("Abriendo en colección...", "info");
+                    notificationsStore.add("Abriendo en colección...", "info");
                 } else {
                     await gower.openPath(pathOrUrl);
-                    notify("Abriendo carpeta local...", "info");
+                    notificationsStore.add("Abriendo carpeta local...", "info");
                 }
             } else {
                 // Remote URL
-                await gower.openPath(pathOrUrl);
-                notify("Abriendo en el navegador...", "info");
+                notificationsStore.add("Abriendo en el navegador...", "info");
             }
             contextMenu.open = false;
         } catch (e) {
-            notify("Error al intentar abrir", "error");
+            notificationsStore.add("Error al intentar abrir", "error"); // Keep for user feedback
             console.error(e);
         }
     }
@@ -425,11 +397,11 @@
 
     async function handleUndo() {
         try {
-            notify("Cambio deshecho", "success");
+            notificationsStore.add("Cambio deshecho", "success");
             await gower.undoWallpaper(); // Now backgrounded in API
             // Refresh happens via event listener in onMount
         } catch (e) {
-            notify("Error al deshacer", "error");
+            notificationsStore.add("Error al deshacer", "error"); // Keep for user feedback
             console.error(e);
         }
     }
@@ -448,9 +420,9 @@
         generic_providers: {},
     };
 
-    /** @type {any} */
+    /** @type {object} */
     let config = $state(defaultConfig);
-    /** @type {any} */
+    /** @type {object} */
     let status = $state({ daemon_running: false });
 
     let settingsLoading = $state(false);
@@ -471,8 +443,9 @@
             if (fetchedStatus) {
                 status = fetchedStatus;
             }
+            console.log("[loadConfig] Configuración y Status cargados.");
         } catch (e) {
-            console.error("Error loading settings:", e);
+            console.error("[loadConfig] Error:", e);
         } finally {
             settingsLoading = false;
         }
@@ -482,27 +455,28 @@
      * @param {any} item
      */
     async function toggleFavorite(item) {
-        if (currentTab === "favorites") {
-            // In favs tab, remove immediately
-            await gower.removeFavorite(item.id);
-            favoritesModel = favoritesModel.filter(
-                (/** @type {any} */ f) => f.id !== item.id,
-            );
-            // Also update feed model if present
-            // Since we don't hold 'isFavorite' state in items but check list, just updating list is enough
-        } else {
-            const isFav = favoritesModel.some(
-                (/** @type {any} */ f) => f.id === item.id,
-            );
-            if (isFav) {
+        const normalizedItemId = normalizeId(item.id);
+        const isCurrentlyFavorite = favoritesModel.some((f) => normalizeId(f.id) === normalizedItemId);
+
+        try {
+            if (isCurrentlyFavorite) {
+                // console.log(`[toggleFavorite] Item ${item.id} (normalized: ${normalizedItemId}) is favorite. Removing...`);
                 await gower.removeFavorite(item.id);
-                favoritesModel = favoritesModel.filter(
-                    (/** @type {any} */ f) => f.id !== item.id,
-                );
+                notificationsStore.add("Eliminado de favoritos", "info");
             } else {
+                // console.log(`[toggleFavorite] Item ${item.id} (normalized: ${normalizedItemId}) is NOT favorite. Adding...`);
                 await gower.addFavorite(item.id);
-                favoritesModel = [...favoritesModel, item];
+                notificationsStore.add("Añadido a favoritos", "success");
             }
+            // Refresh the relevant tab to update the favorite status from the backend
+            if (currentTab === "home" || currentTab === "search" || currentTab === "favorites") {
+                loadHome(false, true); // Refresh home, skip colors for speed, to update favorite status
+                loadFavorites(); // Also refresh favorites to ensure consistency across tabs
+            } else if (currentTab === "favorites") { // If on favorites tab, the gower-command-finished listener will handle the refresh
+                loadFavorites(); // Explicitly refresh favorites if on favorites tab
+            }
+        } catch (e) { // Keep error for user feedback
+            notificationsStore.add("Error al actualizar favoritos", "error");
         }
     }
 
@@ -536,7 +510,7 @@
 
             // If it was active, set a new random one for each affected monitor
             if (affectedMonitorIndices.length > 0 && monitors.length > 0) {
-                notify("Actualizando fondo de escritorio...", "info");
+                notificationsStore.add("Actualizando fondo de escritorio...", "info");
                 for (const idx of affectedMonitorIndices) {
                     const monitorId = monitors[idx]?.ID;
                     if (monitorId) {
@@ -548,7 +522,7 @@
             // Refresh to fill the grid (refetch the current page)
             // Real refresh will happen via 'gower-command-finished' listener
         } catch (e) {
-            console.error("Failed to delete wallpaper:", e);
+            // console.error("Failed to delete wallpaper:", e);
         }
     }
 
@@ -558,25 +532,35 @@
      * @param {WheelEvent} e
      */
     function handleWheel(e) {
-        if (loading) return;
-        if (currentTab !== "home") return;
+        if (loading || favoritesLoading) return;
+        if (currentTab !== "home" && currentTab !== "favorites") return;
 
         // Prevent default scrolling to handle pages
         e.preventDefault();
 
         if (e.deltaY > 0) {
             // Scroll down -> Next page
-            feedPage++;
-            loadHome();
-        } else if (e.deltaY < 0 && feedPage > 1) {
+            if (currentTab === "home") {
+                feedPage++;
+                loadHome();
+            } else if (currentTab === "favorites") {
+                favoritesPage++;
+                loadFavorites();
+            }
+        } else if (e.deltaY < 0) {
             // Scroll up -> Prev page
-            feedPage--;
-            loadHome();
+            if (currentTab === "home" && feedPage > 1) {
+                feedPage--;
+                loadHome();
+            } else if (currentTab === "favorites" && favoritesPage > 1) {
+                favoritesPage--;
+                loadFavorites();
+            }
         }
     }
 
     /**
-     * @param {any} e
+     * @param {CustomEvent<string>} e
      */
     function handleColorSelect(e) {
         selectedColor = selectedColor === e.detail ? "" : e.detail;
@@ -584,16 +568,32 @@
         if (currentTab === "favorites") loadFavorites();
     }
 
-    /**
-     * @param {any} e
+    /** 
+     * @param {CustomEvent<string>} e
      */
     function handleSort(e) {
         currentSort = e.detail;
         loadHome(true);
     }
+    
+    /**
+     * @param {CustomEvent<string>} e
+     */
+    function handleSortFavorites(e) {
+        favoritesCurrentSort = e.detail;
+        loadFavorites(false, 1, favoritesCurrentSort.toLowerCase()); // Reset to page 1 on sort change
+    }
 
     /**
-     * @param {any} e
+     * @param {CustomEvent<number>} e
+     */
+    function handlePageManualFavorites(e) {
+        favoritesPage = e.detail;
+        loadFavorites(false, favoritesPage, favoritesCurrentSort.toLowerCase());
+    }
+
+    /**
+     * @param {CustomEvent<number>} e
      */
     function handlePageManual(e) {
         feedPage = e.detail;
@@ -606,7 +606,10 @@
         untrack(() => {
             if (tab === "home") {
                 if (feedModel.length === 0) loadHome();
-                loadCurrentWallpapers(); // Refresh active status
+                // Only load current wallpapers if not already loaded or if tab changes to home
+                if (currentWallpapers.length === 0 || currentTab !== "home") {
+                    loadCurrentWallpapers(); // Refresh active status
+                }
             }
             if (tab === "favorites") loadFavorites();
 
@@ -642,6 +645,7 @@
         let unlistenResize;
 
         async function init() {
+            console.log("[init] Iniciando carga de la aplicación...");
             try {
                 // Restore search from localStorage
                 const saved = localStorage.getItem("gower_search_data");
@@ -658,13 +662,14 @@
                 }
 
                 appContext = await getAppContext();
+                console.log("[init] AppContext obtenido:", $state.snapshot(appContext));
                 await loadConfig(); // Aseguramos que la configuración se cargue antes de los datos que dependen de ella
 
                 // Load all data in parallel without blocking the UI start
                 Promise.all([
                     loadFavorites(),
                     loadHome(),
-                    loadCurrentWallpapers(),
+                    loadCurrentWallpapers(), // Load current wallpapers
                 ]).catch((e) =>
                     console.error("Initialization background load failed:", e),
                 );
@@ -675,13 +680,14 @@
                 unlistenResize = await listen("tauri://resize", () => {
                     // Logic for resize if needed
                 });
-            } catch (e) {
-                console.error("Initialization failed:", e);
+            } catch (e) { // Keep error for user feedback
+                notificationsStore.add("Error de inicialización", "error");
+                console.error("[init] Error fatal durante inicialización:", e);
             }
         }
 
         init();
-
+        
         // Status polling every 15 seconds as fallback
         const pollInterval = setInterval(() => {
             loadCurrentWallpapers();
@@ -690,8 +696,8 @@
 
         // Listen for background command completions to refresh UI
         const unlistenCommand = listen("gower-command-finished", (event) => {
-            const args = /** @type {string[]} */ (event.payload);
-            console.log("[BG_REFRESH] Command finished, refreshing UI:", args);
+            const args = /** @type {string[]} */ (event.payload); // Keep for context
+            // console.log("[BG_REFRESH] Command finished, refreshing UI:", args);
 
             const isBlacklist = args.includes("blacklist");
             const isSet = args.includes("set");
@@ -708,8 +714,10 @@
 
             // 2. Refresh favorites if favorites or blacklist changed
             if (args.includes("favorites") || isBlacklist) {
-                // Phase 1: Quick fill
-                loadFavorites(isBlacklist);
+                // Only refresh if on the favorites tab, as toggleFavorite already handles optimistic update
+                if (currentTab === "favorites") {
+                    loadFavorites(isBlacklist);
+                }
                 // Phase 2: Background color recalculation if it was a blacklist (only if visible)
                 if (isBlacklist && currentTab === "favorites") {
                     setTimeout(() => loadFavorites(false), 500);
@@ -823,8 +831,9 @@
                 <CurrentWallpapersBar
                     {currentWallpapers}
                     favoritesList={favoritesModel}
-                    on:favorite={(e) => toggleFavorite(e.detail)}
-                    on:delete={(e) => handleDeleteRequest(e.detail)}
+                    collectionPath={config?.paths?.wallpapers}
+                    onfavorite={(item) => toggleFavorite(item)}
+                    onblacklist={(item) => handleBlock(item)}
                 />
             </div>
         {:else if currentTab === "search"}
@@ -853,35 +862,46 @@
             </div>
         {:else if currentTab === "favorites"}
             <div in:fade class="tab-pane home-layout">
-                <div class="top-bar">
+                <div class="top-bar" style="margin-bottom: 6px;">
                     <ColorBar
                         colors={favoritesColors}
                         {selectedColor}
                         on:select={handleColorSelect}
                     />
                 </div>
-
-                <!-- Reuse WallpaperGrid for favorites, different type/actions -->
-                <WallpaperGrid
-                    items={favoritesModel}
-                    loading={favoritesLoading}
-                    type="favorites"
-                    favoritesList={favoritesModel}
-                    collectionPath={config?.paths?.wallpapers}
-                    on:preview={(e) => handlePreview(e.detail)}
-                    on:contextmenu={(e) =>
-                        handleContextMenu(
-                            e.detail.item,
-                            e.detail.x,
-                            e.detail.y,
-                        )}
-                    on:favorite={(e) => toggleFavorite(e.detail)}
-                    on:block={(e) => handleBlock(e.detail)}
-                    on:download={(e) => handleDownload(e.detail)}
-                />
+                <div class="grid-area" onwheel={handleWheel}>
+                    <!-- Reuse WallpaperGrid for favorites, different type/actions -->
+                    <WallpaperGrid
+                        items={favoritesModel}
+                        loading={favoritesLoading}
+                        type="favorites"
+                        favoritesList={favoritesModel}
+                        collectionPath={config?.paths?.wallpapers}
+                        on:preview={(e) => handlePreview(e.detail)}
+                        on:contextmenu={(e) =>
+                            handleContextMenu(
+                                e.detail.item,
+                                e.detail.x,
+                                e.detail.y,
+                            )}
+                        on:favorite={(e) => toggleFavorite(e.detail)}
+                        on:block={(e) => handleBlock(e.detail)}
+                        on:download={(e) => handleDownload(e.detail)}
+                    />
+                </div>
                 {#if favoritesModel.length === 0 && !favoritesLoading}
                     <div class="empty">No tienes favoritos.</div>
                 {/if}
+                <div class="bottom-bar">
+                    <SortBar
+                        currentSort={favoritesCurrentSort}
+                        {sortOptions}
+                        currentPage={favoritesPage}
+                        on:sort={handleSortFavorites}
+                        on:page={handlePageManualFavorites}
+                        on:undo={handleUndo}
+                    />
+                </div>
             </div>
         {:else if currentTab === "settings"}
             <div in:fade class="tab-pane">
@@ -982,11 +1002,10 @@
                         >
                             <span
                                 class="material-icons"
-                                class:active={isFavorite(previewItem.id)}
+                                class:active={favoritesModel.some((f) => normalizeId(f.id) === normalizeId(previewItem.id))}
                             >
-                                {isFavorite(previewItem.id)
-                                    ? "favorite"
-                                    : "favorite_border"}
+                                {favoritesModel.some((f) => normalizeId(f.id) === normalizeId(previewItem.id))
+                                    ? "favorite" : "favorite_border"}
                             </span>
                         </button>
                         {#if !previewItem.isDownloaded}
@@ -1044,28 +1063,9 @@
             </div>
         </div>
     {/if}
-
-    <div class="notifications">
-        {#each notifications as n (n.id)}
-            <div class="notification {n.type}" transition:fade>
-                {#if n.type === "loading"}
-                    <div class="spinner"></div>
-                {:else}
-                    <span class="material-icons">
-                        {n.type === "success"
-                            ? "check_circle"
-                            : n.type === "error"
-                              ? "error"
-                              : "info"}
-                    </span>
-                {/if}
-                {n.message}
-            </div>
-        {/each}
-    </div>
 </main>
-
 <style>
+    /* Remove the .notifications and .notification styles as they are now handled by ToastContainer */
     .app-container {
         display: flex;
         flex-direction: column;
@@ -1415,64 +1415,5 @@
 
     .material-icons {
         font-size: 20px;
-    }
-    .notifications {
-        position: fixed;
-        bottom: 75px; /* Above nav tab line */
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-        z-index: 2000;
-        pointer-events: none;
-        width: 100%;
-        max-width: 400px;
-    }
-
-    .notification {
-        background: var(--surface-container-high);
-        color: var(--on-surface);
-        padding: 10px 16px;
-        border-radius: var(--radius-l);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
-        border: 1px solid var(--outline);
-        font-weight: 500;
-        min-width: 200px;
-    }
-
-    .notification.success {
-        border-left: 4px solid #4caf50;
-    }
-    .notification.error {
-        border-left: 4px solid var(--error);
-    }
-    .notification.loading {
-        border-left: 4px solid var(--primary);
-    }
-    .notification.success span {
-        color: #4caf50;
-    }
-    .notification.error span {
-        color: var(--error);
-    }
-
-    .spinner {
-        width: 18px;
-        height: 18px;
-        border: 2px solid rgba(255, 255, 255, 0.1);
-        border-top-color: var(--primary);
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
     }
 </style>

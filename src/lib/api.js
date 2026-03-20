@@ -27,7 +27,7 @@ function extractJson(text) {
     try {
       return JSON.parse(jsonStr);
     } catch (e) {
-      console.error("Failed to parse extracted JSON:", e);
+      console.error("[API] Failed to parse extracted JSON:", e);
     }
   }
   return null;
@@ -43,26 +43,23 @@ function extractJson(text) {
 export async function runGower(args, silent = false, background = false) {
   const startTime = Date.now();
   try {
-    const result = await invoke("run_gower_command", { args, background });
-    const duration = Date.now() - startTime;
+    const result = await invoke("run_gower_command", { args, background }); // Keep for context
 
     if (background) return result; // Usually "Backgrounded"
 
     if (!silent) {
-      const parsed = extractJson(result);
-      return parsed || result;
-    } else {
-      return extractJson(result) || result;
+      // Restaurada la linea borrada por accidente que devuelve los datos al frontend
     }
+    return extractJson(result) || result;
   } catch (e) {
     const duration = Date.now() - startTime;
-    console.error(`[GOWER] Command failed (${duration}ms):`, e);
+    console.error(`[GOWER] Command failed (${duration}ms):`, args, e);
 
     if (!silent) {
       const err = /** @type {any} */ (e);
       const msg = typeof err === "string" ? err : err.message || "Error desconocido";
       // Clean up error message if it's too technical or verbose?
-      // For now, raw message is better than nothing.
+      // For now, raw message is better than nothing. // Using store
       notifications.add(`Error: ${msg}`, "error", 5000);
     }
 
@@ -101,19 +98,20 @@ export async function checkFileExists(path) {
 export function mapThumbnails(items, cachePath) {
   if (!items) return [];
   return items.map((item) => {
+    // Keep for context
     const newItem = { ...item }; // Create a shallow copy to preserve all original properties
 
     // Priority: thumbnail -> url -> path (absolute) -> id/ext (cache)
     let thumbnailSource = newItem.thumbnail || newItem.url || newItem.path || "";
 
     if (thumbnailSource.startsWith("http") || thumbnailSource.startsWith("asset:") || thumbnailSource.startsWith("https://asset.")) {
-      // Already a valid URL or asset URL, keep it
+      // Already a valid URL or asset URL, keep it // Keep for context
       newItem.thumbnail = thumbnailSource;
     } else if (
       thumbnailSource !== "" &&
       (thumbnailSource.startsWith("/") || thumbnailSource.startsWith("C:\\") || thumbnailSource.startsWith("\\"))
     ) {
-      // It's an absolute local path, convert it to a Tauri asset URL.
+      // It's an absolute local path, convert it to a Tauri asset URL. // Keep for context
       const originalLocalPath = thumbnailSource;
       newItem.thumbnail = convertFileSrc(originalLocalPath);
       newItem.path = originalLocalPath;
@@ -125,12 +123,21 @@ export function mapThumbnails(items, cachePath) {
       newItem.thumbnail = convertFileSrc(originalCachePath);
       newItem.path = originalCachePath;
     } else {
-      // No valid path found
+      // No valid path found // Keep for context
       newItem.thumbnail = "";
     }
 
     return newItem;
   });
+}
+
+/**
+ * Normalizes an item ID for consistent comparison.
+ * @param {string | number} id
+ * @returns {string}
+ */
+export function normalizeId(id) {
+  return String(id).trim();
 }
 
 /**
@@ -163,16 +170,19 @@ export const gower = {
   updateFeed: () => runGower(["feed", "update"], false, true), // Background
   /**
    * @param {string} [color]
+   * @param {number} [page]
+   * @param {number} [limit]
+   * @param {string} [sort]
    */
-  getFavorites: (color = "") => {
-    const args = ["favorites", "list", "--json"];
-    if (color) args.push("--color", color.replace("#", ""));
+  getFavorites: (page = 1, limit = 9, color = "", sort = "smart") => {
+    const args = ["favorites", "list", "--page", String(page), "--limit", String(limit), "--json"];
+    if (color) args.push("--color", color.replace("#", "")); // Color is optional
     return runGower(args);
   },
-  /** @param {string} id */
-  addFavorite: (id) => runGower(["favorites", "add", id], false, true),
-  /** @param {string} id */
-  removeFavorite: (id) => runGower(["favorites", "remove", id], false, true),
+  /** @param {string} id */ // Changed to not run in background
+  addFavorite: (id) => runGower(["favorites", "add", id], false, false),
+  /** @param {string} id */ // Changed to not run in background
+  removeFavorite: (id) => runGower(["favorites", "remove", id], false, false),
   /** @param {string} id */
   blacklist: (id) => runGower(["blacklist", "add", id], false, true),
   /** @param {string} id */
@@ -203,7 +213,7 @@ export const gower = {
       const response = await runGower(cmd);
       return response;
     } catch (e) {
-      console.error(`Error en daemon:`, e);
+      // console.error(`Error en daemon:`, e);
       throw e;
     }
   },

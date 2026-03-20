@@ -1,34 +1,66 @@
 <script>
-    import { createEventDispatcher } from "svelte";
     import { t } from "$lib/stores/i18n";
+    import { notifications } from "$lib/stores/notifications";
     import { fade } from "svelte/transition";
+    import { normalizeId } from "$lib/api";
 
-    /** @type {any[]} */
-    export let currentWallpapers = []; // Array of items
-    /** @type {any[]} */
-    export let favoritesList = []; // Array of favorite items to check status
+    let {
+        currentWallpapers = [],
+        favoritesList = [],
+        collectionPath = "",
+        onfavorite,
+        onblacklist
+    } = $props();
 
-    const dispatch = createEventDispatcher();
-
-    /**
-     * @param {string} id
-     */
-    function isFavorite(id) {
-        return favoritesList.some((f) => f.id === id);
-    }
+    // Reactive Set for O(1) lookups and guaranteed reactivity
+    let favoriteIds = $derived(new Set(favoritesList.map(f => normalizeId(f.id))));
 
     /**
      * @param {any} item
      */
     function toggleFavorite(item) {
-        dispatch("favorite", item);
+        if (onfavorite) onfavorite(item);
+    }
+
+    /**
+     * @param {any} item 
+     */
+    function blacklistWallpaper(item) {
+        if (onblacklist) onblacklist(item);
     }
 
     /**
      * @param {any} item
      */
-    function deleteWallpaper(item) {
-        dispatch("delete", item);
+    function isFavorite(item) {
+        if (!item || !item.id) return false;
+        return favoriteIds.has(normalizeId(item.id));
+    }
+
+    /**
+     * @param {any} item
+     */
+    function isDownloaded(item) {
+        if (!item) return false;
+        if (item.source === "local") return true;
+        if (!item.path) return false;
+
+        const pathStr = item.path || "";
+        const cleanCollection = (collectionPath || "").replace(/[\\/]$/, "");
+        const cleanPath = pathStr.replace(/[\\/]$/, "");
+        
+        if (cleanCollection && cleanPath.startsWith(cleanCollection)) {
+            return true;
+        }
+
+        // Fallback: Si es ruta absoluta y NO está en ninguna carpeta de caché, se asume que es local/descargada
+        if (cleanPath.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(cleanPath)) {
+            if (!cleanPath.includes("/cache/") && !cleanPath.includes("\\cache\\")) {
+                return true;
+            }
+        }
+
+        return false;
     }
 </script>
 
@@ -43,20 +75,31 @@
                         <button
                             onclick={() => toggleFavorite(item)}
                             title={$t("common.favorite")}
-                            class="favorite-btn"
                         >
-                            <span class="material-icons" class:active={isFavorite(item.id)}>
-                                {isFavorite(item.id) ? "favorite" : "favorite_border"}
+                            <span class="material-icons" class:active={isFavorite(item)}>
+                                {isFavorite(item) ? "favorite" : "favorite_border"}
                             </span>
                         </button>
                         <button
-                            class="danger"
-                            onclick={() => deleteWallpaper(item)}
-                            title={$t("common.delete")}
+                            class="block-btn"
+                            onclick={() => blacklistWallpaper(item)}
+                            title={$t("grid.add_to_blacklist")}
                         >
-                            <span class="material-icons">delete</span>
+                            <span class="material-icons">visibility_off</span>
                         </button>
                     </div>
+
+                    {#if isFavorite(item)}
+                        <div class="fav-badge">
+                            <span class="material-icons">favorite</span>
+                        </div>
+                    {/if}
+
+                    {#if isDownloaded(item)}
+                        <div class="download-badge">
+                            <span class="material-icons">save</span>
+                        </div>
+                    {/if}
                 </div>
             {/each}
         </div>
@@ -139,7 +182,7 @@
     button:hover {
         background: rgba(255, 255, 255, 0.2);
     }
-    button.danger:hover {
+    button.block-btn:hover {
         color: var(--error);
         background: rgba(255, 0, 0, 0.2);
     }
@@ -151,4 +194,29 @@
     .material-icons.active {
         color: var(--error);
     }
+
+    .fav-badge {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        color: var(--error);
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+        pointer-events: none;
+    }
+    .fav-badge .material-icons { font-size: 16px; }
+
+    .download-badge {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        color: #4caf50;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+        pointer-events: none;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .download-badge .material-icons { font-size: 12px; }
 </style>

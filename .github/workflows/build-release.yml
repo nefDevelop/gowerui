@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     branches:
       - main
@@ -19,14 +19,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'ubuntu-22.04'
-            target: 'x86_64-unknown-linux-gnu'
-            binary_name: 'gower'
-            sidecar_name: 'gower-x86_64-unknown-linux-gnu'
-          - platform: 'windows-latest'
-            target: 'x86_64-pc-windows-msvc'
-            binary_name: 'gower.exe'
-            sidecar_name: 'gower-x86_64-pc-windows-msvc.exe'
+          - platform: "ubuntu-22.04"
+            target: "x86_64-unknown-linux-gnu"
+            binary_name: "gower"
+            sidecar_name: "gower-x86_64-unknown-linux-gnu"
+          - platform: "windows-latest"
+            target: "x86_64-pc-windows-msvc"
+            binary_name: "gower.exe"
+            sidecar_name: "gower-x86_64-pc-windows-msvc.exe"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -36,7 +36,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: "npm"
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -70,13 +70,13 @@ jobs:
           echo "Fetching latest release from $REPO..."
           LATEST_RELEASE_JSON=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/$REPO/releases/latest)
           GOWER_VERSION=$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | head -n 1 | cut -d '"' -f 4)
-          
+
           if [[ "${{ matrix.platform }}" == "ubuntu-22.04" ]]; then
             DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower\"" | head -n 1 | cut -d '"' -f 4)
           else
             DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower.exe\"" | head -n 1 | cut -d '"' -f 4)
           fi
-          
+
           curl -L -H "Authorization: token $GH_TOKEN" "$DOWNLOAD_URL" -o src-tauri/binaries/${{ matrix.sidecar_name }}
           chmod +x src-tauri/binaries/${{ matrix.sidecar_name }} || true
           echo "{\"version\": \"$GOWER_VERSION\", \"repo\": \"$REPO\", \"binary\": \"${{ matrix.binary_name }}\"}" > src/lib/sidecar-info.json
@@ -98,7 +98,7 @@ jobs:
           cp "$BINARY_PATH" gowerui-linux-portable/
           cp src-tauri/binaries/gower-x86_64-unknown-linux-gnu gowerui-linux-portable/gower
           cp src-tauri/icons/128x128.png gowerui-linux-portable/icon.png
-          
+
           cat <<EOF > gowerui-linux-portable/gowerui.desktop
           [Desktop Entry]
           Name=Gower UI
@@ -117,7 +117,7 @@ jobs:
 
           chmod +x gowerui-linux-portable/gowerui gowerui-linux-portable/gower
           tar -czf gowerui-linux-portable.tar.gz gowerui-linux-portable/
-          
+
           mkdir -p final-assets
           find src-tauri/target -name "*.deb" -exec cp {} final-assets/ \;
           find src-tauri/target -name "*.rpm" -exec cp {} final-assets/ \;
@@ -135,11 +135,11 @@ jobs:
           cp "$BINARY_PATH" gowerui-windows-portable/
           # Mantener el nombre completo del sidecar para que Tauri lo encuentre
           cp src-tauri/binaries/gower-x86_64-pc-windows-msvc.exe gowerui-windows-portable/gower-x86_64-pc-windows-msvc.exe
-          
+
           # Crear un pequeño README explicativo
           echo "Ejecuta gowerui.exe para iniciar la aplicación." > gowerui-windows-portable/README.txt
           echo "No elimines gower-x86_64-pc-windows-msvc.exe, es el motor de la aplicación." >> gowerui-windows-portable/README.txt
-          
+
           cd gowerui-windows-portable && 7z a ../gowerui-windows-portable.zip * && cd ..
 
           mkdir -p final-assets
@@ -154,8 +154,8 @@ jobs:
         with:
           files: final-assets/*
           tag_name: v${{ steps.tauri_version.outputs.version }}
-          name: 'gowerui v${{ steps.tauri_version.outputs.version }}'
-          body: 'Automatic release. Includes Portable, DEB, RPM, AppImage and MSI/EXE versions.'
+          name: "gowerui v${{ steps.tauri_version.outputs.version }}"
+          body: "Automatic release. Includes Portable, DEB, RPM, AppImage and MSI/EXE versions."
           draft: false
           prerelease: false
         env:

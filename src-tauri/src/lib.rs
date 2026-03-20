@@ -25,7 +25,7 @@ struct GowerState {
 
 #[tauri::command]
 async fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
-    println!("[{}] Tauri Command: get_app_context", Local::now().format("%Y-%m-%d %H:%M:%S"));
+    // println!("[{}] Tauri Command: get_app_context", Local::now().format("%Y-%m-%d %H:%M:%S"));
     let home = app.path().home_dir().map_err(|e| e.to_string())?;
     
     let (config_path, cache_path) = if cfg!(target_os = "windows") {
@@ -57,17 +57,39 @@ async fn get_app_context(app: tauri::AppHandle) -> Result<AppContext, String> {
     Ok(context)
 }
 
-fn resolve_gower_path(app: &tauri::AppHandle) -> Result<tauri_plugin_shell::process::Command, String> {
+async fn resolve_gower_path(app: &tauri::AppHandle) -> Result<tauri_plugin_shell::process::Command, String> { // Make this async
     let state = app.state::<GowerState>();
-    let custom_path = state.custom_path.lock().unwrap();
+    let custom_path_option = {
+        let custom_path_guard = state.custom_path.lock().unwrap();
+        custom_path_guard.clone() // Clone the PathBuf out of the MutexGuard
+    }; // MutexGuard is dropped here
     
     // If we have a custom path, use it as a regular command
-    if let Some(ref path) = *custom_path {
-        println!("[DEBUG] Using custom gower path: {:?}", path);
+    if let Some(path) = custom_path_option {
+        // println!("[DEBUG] Using custom gower path: {:?}", path);
         return Ok(app.shell().command(path.to_string_lossy().to_string()));
     }
 
+    // Try to find 'gower' in the system's PATH
+    // println!("[DEBUG] Attempting to find 'gower' in system PATH...");
+    // Create a command instance for "gower" (this is a new Command, not the one from custom_path)
+    let system_gower_cmd_check = app.shell().command("gower");
+    // Try to run a simple, non-destructive command like "version" or "help"
+    // We only care if the command *can be executed* by the OS, not its exit status.
+    // If `output()` returns `Ok`, it means the OS found the executable.
+    match system_gower_cmd_check.args(&["--version"]).output().await {
+        Ok(_) => {
+            // println!("[DEBUG] 'gower' found in system PATH and is executable.");
+            // If successful, return a new Command instance for "gower" without the "--version" arg
+            return Ok(app.shell().command("gower"));
+        },
+        Err(_e) => {
+            // println!("[DEBUG] 'gower' not found in system PATH or execution failed: {}", e);
+        }
+    }
+
     // Try to find it as a sidecar
+    // println!("[DEBUG] Attempting to find bundled sidecar 'gower'...");
     let sidecar_command = app.shell().sidecar("gower")
         .map_err(|e| {
             let exe_dir = app.path().executable_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -81,7 +103,7 @@ fn resolve_gower_path(app: &tauri::AppHandle) -> Result<tauri_plugin_shell::proc
                 Error de Tauri: {}", 
                 exe_dir, expected_name, e
             );
-            println!("[ERROR] {}", err_msg);
+            // println!("[ERROR] {}", err_msg);
             err_msg
         })?;
     Ok(sidecar_command)
@@ -89,10 +111,10 @@ fn resolve_gower_path(app: &tauri::AppHandle) -> Result<tauri_plugin_shell::proc
 
 #[tauri::command]
 async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background: Option<bool>) -> Result<String, String> {
-    let now = Local::now().format("%Y-%m-%d %H:%M:%S");
+    let _now = Local::now().format("%Y-%m-%d %H:%M:%S");
     let is_bg = background.unwrap_or(false);
     
-    let cmd_result = resolve_gower_path(&app);
+    let cmd_result = resolve_gower_path(&app).await;
     
     // If the sidecar is missing, show a file picker
     if let Err(err) = cmd_result {
@@ -120,7 +142,7 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
     let mut cmd = cmd_result.unwrap();
     
     // Debug log to see exactly what Tauri is doing
-    println!("[{}] Tauri Command (is_bg={}): {:?} args: {:?}", now, is_bg, cmd, args);
+    // println!("[{}] Tauri Command (is_bg={}): {:?} args: {:?}", now, is_bg, cmd, args);
     
     cmd = cmd.args(&args);
 
@@ -129,28 +151,37 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
         let args_clone = args.clone();
         
         tokio::spawn(async move {
-            let now_bg = Local::now().format("%Y-%m-%d %H:%M:%S");
-            println!("[{}] Executing BG sidecar command: {:?}", now_bg, args_clone);
+            let _now_bg = Local::now().format("%Y-%m-%d %H:%M:%S");
+            // println!("[{}] Executing BG sidecar command: {:?}", now_bg, args_clone);
             
             let output = cmd.output().await;
             
             if let Ok(out) = output {
                 let success = out.status.success();
-                let now_done = Local::now().format("%Y-%m-%d %H:%M:%S");
-                println!("[{}] BG command finished (success={}): {:?}", now_done, success, args_clone);
+                let _now_done = Local::now().format("%Y-%m-%d %H:%M:%S");
+                // println!("[{}] BG command finished (success={}): {:?}", now_done, success, args_clone);
+
+                let _stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                let stderr = String::from_utf8_lossy(&out.stderr).to_string();
                 
-                if success {
+                // Solo loguear STDOUT/STDERR para comandos de favoritos en segundo plano
+                if args_clone.contains(&"favorites".to_string()) {
+                    // println!("[{}] BG Command STDOUT: {}", _now_done, _stdout);
+                    // eprintln!("[{}] BG Command STDERR: {}", _now_done, stderr);
+                }
+
+                if success || stderr.contains("already in favorites") { // Treat "already in favorites" as a success for UI refresh
                     let _ = app_handle.emit("gower-command-finished", args_clone);
                 }
-            } else if let Err(e) = output {
-                 println!("[{}] [ERROR] BG command failed: {}", now_bg, e);
+            } else if let Err(_e) = output {
+                 // println!("[{}] [ERROR] BG command failed: {}", now_bg, e);
             }
         });
         
         return Ok("Backgrounded".to_string());
     }
 
-    println!("[{}] Executing sidecar command with args: {:?}", now, args);
+    // println!("[{}] Executing sidecar command with args: {:?}", now, args);
 
     let output = cmd.output().await
         .map_err(|e| format!("Sidecar execution failed: {}", e))?;
@@ -158,8 +189,15 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
+    // Imprimir la salida de stdout y stderr para comandos en primer plano
+    // println!("[{}] Command STDOUT: {}", now, stdout);
+    // eprintln!("[{}] Command STDERR: {}", now, stderr);
     if output.status.success() {
-        Ok(format!("{}{}", stdout, stderr))
+        // Prioritize stdout for expected data, fall back to stderr if stdout is empty
+        // This assumes gower might eventually output JSON to stdout.
+        // For now, if stdout is empty, stderr contains the JSON output.
+        if !stdout.is_empty() { Ok(stdout) }
+        else { Ok(stderr) }
     } else {
         Err(if stderr.is_empty() { "Command failed with empty stderr".to_string() } else { stderr })
     }
@@ -167,7 +205,7 @@ async fn run_gower_command(app: tauri::AppHandle, args: Vec<String>, background:
 
 #[tauri::command]
 async fn check_battery() -> Result<bool, String> {
-    println!("[{}] Tauri Command: check_battery", Local::now().format("%Y-%m-%d %H:%M:%S"));
+    // println!("[{}] Tauri Command: check_battery", Local::now().format("%Y-%m-%d %H:%M:%S"));
     #[cfg(target_os = "linux")]
     {
         if let Ok(entries) = std::fs::read_dir("/sys/class/power_supply/") {
