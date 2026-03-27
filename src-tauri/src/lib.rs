@@ -294,10 +294,20 @@ pub fn run() {
                 .on_tray_icon_event(|tray, event| {
                     if let TrayIconEvent::Click {
                         button: MouseButton::Left,
+                        position,
                         ..
                     } = event {
                         let app = tray.app_handle();
                         if let Some(window) = app.get_webview_window("main") {
+                            // Obtener el tamaño de la ventana para centrarla un poco respecto al clic
+                            if let Ok(size) = window.outer_size() {
+                                let x = position.x as i32 - (size.width as i32 / 2);
+                                let y = position.y as i32;
+                                
+                                // Mover la ventana a la posición del tray
+                                let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+                            }
+
                             let _ = window.unminimize();
                             let _ = window.show();
                             let _ = window.set_focus();

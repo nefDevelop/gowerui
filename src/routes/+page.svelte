@@ -1178,13 +1178,16 @@
         overflow: hidden;
         position: relative;
         padding: 0 var(--spacing-s) var(--spacing-s) var(--spacing-s);
+        display: flex;
+        flex-direction: column;
     }
 
     .tab-pane {
-        height: 100%;
+        flex: 1;
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        min-height: 0;
     }
 
     /* Modals & Context Menu */
@@ -1395,16 +1398,22 @@
     /* Home Layout Specifics */
     .home-layout {
         gap: 6px; /* Reduced by 2px from 8px */
+        gap: 4px; /* Reduced further to save space */
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
     }
 
     .grid-area {
-        flex: 1; /* Stretch to occupy space but let bottom-bar stretch too if flexible */
+        flex: 1; /* Allow to grow and shrink */
         overflow-y: auto;
         min-height: 0;
     }
 
     .bottom-bar {
         flex-shrink: 0;
+        margin-bottom: 2px;
     }
 
     .empty {
