@@ -9,7 +9,8 @@
         favoritesList = [],
         collectionPath = "",
         onfavorite,
-        onblacklist
+        onblacklist,
+        onpreview
     } = $props();
 
     // Reactive Set for O(1) lookups and guaranteed reactivity
@@ -18,14 +19,16 @@
     /**
      * @param {any} item
      */
-    function toggleFavorite(item) {
+    function toggleFavorite(e, item) {
+        e.stopPropagation();
         if (onfavorite) onfavorite(item);
     }
 
     /**
      * @param {any} item 
      */
-    function blacklistWallpaper(item) {
+    function blacklistWallpaper(e, item) {
+        e.stopPropagation();
         if (onblacklist) onblacklist(item);
     }
 
@@ -68,12 +71,18 @@
     <div class="current-bar glass-card" transition:fade>
         <div class="scroll-container">
             {#each currentWallpapers as item}
-                <div class="wallpaper-item">
+                <div 
+                    class="wallpaper-item" 
+                    onclick={() => onpreview?.(item)}
+                    onkeydown={(e) => e.key === 'Enter' && onpreview?.(item)}
+                    role="button"
+                    tabindex="0"
+                >
                     <img src={item.thumbnail} alt={item.id} />
 
                     <div class="overlay">
                         <button
-                            onclick={() => toggleFavorite(item)}
+                            onclick={(e) => toggleFavorite(e, item)}
                             title={$t("common.favorite")}
                         >
                             <span class="material-icons" class:active={isFavorite(item)}>
@@ -82,13 +91,13 @@
                         </button>
                         <button
                             class="block-btn"
-                            onclick={() => blacklistWallpaper(item)}
+                            onclick={(e) => blacklistWallpaper(e, item)}
                             title={$t("grid.add_to_blacklist")}
                         >
                             <span class="material-icons">visibility_off</span>
                         </button>
                     </div>
-
+        ...
                     {#if isFavorite(item)}
                         <div class="fav-badge">
                             <span class="material-icons">favorite</span>
@@ -135,6 +144,7 @@
     .wallpaper-item {
         position: relative;
         height: 100px;
+        aspect-ratio: 16 / 10;
         border-radius: var(--radius-m);
         overflow: hidden;
         flex-shrink: 0;
@@ -144,9 +154,9 @@
     }
 
     .wallpaper-item img {
+        width: 100%;
         height: 100%;
-        width: auto;
-        object-fit: contain;
+        object-fit: cover;
     }
 
     .overlay {

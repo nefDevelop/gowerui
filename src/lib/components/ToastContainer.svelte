@@ -39,7 +39,7 @@
             class:error={toast.type === "error"}
             class:success={toast.type === "success"}
             animate:flip={{ duration: 300 }}
-            transition:fly={{ y: 20, duration: 300 }}
+            transition:fly={{ x: 50, duration: 300 }}
         >
             <span class="material-icons icon">{getIcon(toast.type)}</span>
             <span class="message">{toast.message}</span>
@@ -60,33 +60,33 @@
 <style>
     .toast-container {
         position: fixed;
-        bottom: 24px;
-        right: 24px;
+        top: 40px; /* Below titlebar/nav */
+        right: 12px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        align-items: flex-end;
+        gap: 8px;
         z-index: 9999;
-        pointer-events: none; /* Allow clicking through container */
+        pointer-events: none;
     }
 
     .toast {
         pointer-events: auto;
-        background: rgba(30, 30, 30, 0.95);
+        background: rgba(20, 20, 20, 0.85);
         color: white;
-        padding: 12px 16px;
-        border-radius: 8px;
+        padding: 8px 12px;
+        border-radius: 6px;
         display: flex;
         align-items: center;
-        gap: 12px;
-        min-width: 300px;
-        max-width: 450px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        border-left: 4px solid var(--primary);
+        gap: 8px;
+        max-width: 240px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        border-left: 3px solid var(--primary);
         position: relative;
         overflow: hidden;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .toast.error {
@@ -97,7 +97,7 @@
     }
 
     .icon {
-        font-size: 20px;
+        font-size: 18px;
         opacity: 0.9;
     }
 
@@ -110,17 +110,20 @@
 
     .message {
         flex: 1;
-        font-size: 0.9rem;
-        line-height: 1.4;
+        font-size: 0.8rem;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .close-btn {
         background: transparent;
         border: none;
         color: white;
-        opacity: 0.5;
+        opacity: 0.4;
         cursor: pointer;
-        padding: 4px;
+        padding: 2px;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -134,6 +137,15 @@
     }
 
     .close-btn .material-icons {
-        font-size: 16px;
+        font-size: 14px;
+    }
+
+    .progress-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 2px;
+        width: 100%;
+        opacity: 0.6;
     }
 </style>

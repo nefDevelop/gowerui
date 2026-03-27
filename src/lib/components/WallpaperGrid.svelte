@@ -81,7 +81,7 @@
 </script>
 
 <div class="grid premium-scroll">
-    {#each items as item (item.id)}
+    {#each items.slice(0, 9) as item (item.id)}
         <div
             class="card glass-card"
             onclick={() => handleWallpaperClick(item)}
