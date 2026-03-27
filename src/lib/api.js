@@ -184,7 +184,7 @@ export const gower = {
   /** @param {string} id */ // Changed to not run in background
   removeFavorite: (id) => runGower(["favorites", "remove", id], false, false),
   /** @param {string} id */
-  blacklist: (id) => runGower(["blacklist", "add", id], false, true),
+  blacklist: (id) => runGower(["blacklist", "add", id], false, false),
   /** @param {string} id */
   download: (id) => runGower(["download", id, "--to-collection"], false, true),
   /**
@@ -246,7 +246,7 @@ export const gower = {
   getFeedColors: () => runGower(["feed", "get", "colors", "--json"], true),
   getFavoritesColors: () => runGower(["favorites", "get", "colors", "--json"], true),
   /** @param {string} id */
-  deleteWallpaper: (id) => runGower(["wallpaper", id, "--delete", "--file", "--force"], false, true),
+  deleteWallpaper: (id) => runGower(["wallpaper", id, "--delete", "--file", "--force"], false, false),
   undoWallpaper: () => runGower(["set", "undo"], false, true),
   /** @param {string} pathOrUrl */
   openPath: async (pathOrUrl) => {

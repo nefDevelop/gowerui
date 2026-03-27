@@ -7,6 +7,8 @@
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import { listen } from "@tauri-apps/api/event";
 
+    const appWindow = getCurrentWindow();
+
     import ColorBar from "$lib/components/ColorBar.svelte";
     import SettingsPanel from "$lib/components/SettingsPanel.svelte";
     import SearchPanel from "$lib/components/SearchPanel.svelte";
@@ -234,35 +236,33 @@
         if (!item) return;
         const snap = $state.snapshot(item);
         try {
-            // Check which monitor(s) are using this wallpaper by matching ID
-            const affectedMonitorIndices = currentWallpapers
-                .map((curr, idx) => (curr.id === snap.id ? idx : -1))
-                .filter((idx) => idx !== -1);
+            // 1. Identify which monitor is using this wallpaper before removing it
+            const affectedMonitorIds = currentWallpapers
+                .map((curr, idx) => (curr.id === snap.id ? monitors[idx]?.ID : null))
+                .filter(id => id !== null);
 
+            // 2. Wait for blacklist to finish (now synchronous in api.js)
             await gower.blacklist(snap.id);
-            // Visual feedback: remove from models immediately for responsiveness
+            
+            // 3. Update UI locally for instant feedback
             feedModel = feedModel.filter((i) => i.id !== snap.id);
-            if (searchResults) {
-                searchResults = searchResults.filter((i) => i.id !== snap.id);
-            }
             favoritesModel = favoritesModel.filter((i) => i.id !== snap.id);
             currentWallpapers = currentWallpapers.filter((i) => i.id !== snap.id);
+            if (searchResults) searchResults = searchResults.filter((i) => i.id !== snap.id);
+            
             notificationsStore.add("Imagen añadida a la lista negra", "success");
 
-            // If it was active, set a new random one for each affected monitor
-            if (affectedMonitorIndices.length > 0 && monitors.length > 0) {
+            // 4. Force new wallpaper on affected monitors
+            if (affectedMonitorIds.length > 0) {
                 notificationsStore.add("Actualizando fondo de escritorio...", "info");
-                for (const idx of affectedMonitorIndices) {
-                    const monitorId = monitors[idx]?.ID;
-                    if (monitorId) {
-                        await gower.setRandom(monitorId);
-                    }
+                for (const monitorId of affectedMonitorIds) {
+                    await gower.setRandom(monitorId);
                 }
+                // Final sync after backend stabilizes
+                setTimeout(() => loadCurrentWallpapers(), 600);
             }
-            // Real refresh will happen via 'gower-command-finished' listener
         } catch (e) {
             notificationsStore.add("Error al añadir a la lista negra", "error");
-            console.error("Failed to blacklist item:", e);
         }
     }
 
@@ -701,41 +701,41 @@
 
             const isBlacklist = args.includes("blacklist");
             const isSet = args.includes("set");
+            const isDelete = args.includes("delete") || args.includes("wallpaper");
+            const isUndo = args.includes("undo");
 
             // 1. Refresh current wallpapers if something changed that could affect them
-            if (
-                isSet ||
-                args.includes("undo") ||
-                args.includes("wallpaper") ||
-                isBlacklist
-            ) {
-                loadCurrentWallpapers();
+            if (isSet || isUndo || isDelete || isBlacklist) {
+                // Give the backend a tiny moment to stabilize status if needed
+                setTimeout(() => loadCurrentWallpapers(), 300);
             }
 
             // 2. Refresh favorites if favorites or blacklist changed
-            if (args.includes("favorites") || isBlacklist) {
+            if (args.includes("favorites") || isBlacklist || isDelete) {
                 // Only refresh if on the favorites tab, as toggleFavorite already handles optimistic update
                 if (currentTab === "favorites") {
-                    loadFavorites(isBlacklist);
+                    loadFavorites(isBlacklist || isDelete);
                 }
                 // Phase 2: Background color recalculation if it was a blacklist (only if visible)
-                if (isBlacklist && currentTab === "favorites") {
-                    setTimeout(() => loadFavorites(false), 500);
+                if ((isBlacklist || isDelete) && currentTab === "favorites") {
+                    setTimeout(() => loadFavorites(false), 600);
                 }
             }
 
             // 3. Refresh home feed if it might have changed
             if (
                 isBlacklist ||
+                isDelete ||
+                isSet ||
                 args.includes("wallpaper") ||
                 (args.includes("feed") && (args.includes("update") || args.includes("download"))) ||
                 args.includes("download")
             ) {
                 // Phase 1: Quick fill
-                loadHome(false, isBlacklist);
+                loadHome(false, isBlacklist || isDelete);
                 // Phase 2: Background color recalculation if it was a blacklist (only if visible)
-                if (isBlacklist && currentTab === "home") {
-                    setTimeout(() => loadHome(false, false), 500);
+                if ((isBlacklist || isDelete) && currentTab === "home") {
+                    setTimeout(() => loadHome(false, false), 600);
                 }
             }
         });
@@ -834,6 +834,7 @@
                     collectionPath={config?.paths?.wallpapers}
                     onfavorite={(item) => toggleFavorite(item)}
                     onblacklist={(item) => handleBlock(item)}
+                    onpreview={(item) => handlePreview(item)}
                 />
             </div>
         {:else if currentTab === "search"}
@@ -985,8 +986,8 @@
 
                     <div class="quick-actions">
                         <button
-                            onclick={async () => {
-                                await gower.blacklist(previewItem.id);
+                            onclick={() => {
+                                handleBlock(previewItem);
                                 previewOpen = false;
                             }}
                             title="Añadir a lista negra"
