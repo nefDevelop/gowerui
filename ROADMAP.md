@@ -36,6 +36,10 @@ Este documento describe los pasos necesarios y las características planificadas
 - [x] **Internacionalización (i18n)**: Soporte para múltiples idiomas.
 - [x] **Temas**: Soporte completo para temas claro/oscuro (detectar sistema).
 
+
+## Fase 3.5:
+- [ ] Eliminar rust, pasar a go con wails.
+
 ## 🌟 Fase 4: Features Futuras (Largo Plazo)
 - [ ] **Actualizaciones Automáticas**: Configurar el updater de Tauri.
 - [ ] **CI/CD**: Configurar GitHub Actions para tests y builds automáticos en cada push.
