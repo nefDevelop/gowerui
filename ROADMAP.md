@@ -37,8 +37,29 @@ Este documento describe los pasos necesarios y las características planificadas
 - [x] **Temas**: Soporte completo para temas claro/oscuro (detectar sistema).
 
 
-## Fase 3.5:
-- [ ] Eliminar rust, pasar a go con wails.
+## 🐹 Fase 3.5: Migración a Wails (Go)
+- [x] **Setup Inicial**: 
+    - [x] Inicializar proyecto Wails v2.
+    - [x] Migrar configuración de ventana (tamaño inicial, transparencia, etc.).
+    - [x] Portar iconos y assets de branding. (Mantenidos en la estructura anterior o referenciados).
+- [x] **Reescritura del Backend (Go)**:
+    - [x] Implementar `runGowerCommand` usando `os/exec`.
+    - [x] Portar lógica de `getAppContext` y resolución de rutas dinámicas.
+    - [x] Implementar `checkBattery` para Linux y Windows en Go.
+    - [x] Implementar `checkFileExists`.
+- [ ] **Gestión de Ventana y Tray**:
+    - [ ] Implementar menús del sistema (Tray) con Go Runtime. (Pendiente refinar posicionamiento).
+    - [ ] Replicar comportamiento de "Minimizar al cerrar" y control de visibilidad.
+- [x] **Manejo de Archivos Local (Assets)**:
+    - [x] Implementar `AssetsHandler` personalizado para servir miniaturas desde la carpeta de caché.
+- [x] **Refactor de Frontend**:
+    - [x] Eliminar dependencias de `@tauri-apps/api`.
+    - [x] Adaptar `src/lib/api.js` para usar los bindings de Wails.
+    - [x] Limpiar `package.json` de plugins de Tauri.
+- [x] **Infraestructura**:
+    - [x] Adaptar `Makefile` para builds de Wails.
+    - [ ] Actualizar flujos de CI/CD (GitHub Actions) para usar Go en lugar de Rust.
+    - [ ] Actualizar scripts de distribución portable.
 
 ## 🌟 Fase 4: Features Futuras (Largo Plazo)
 - [ ] **Actualizaciones Automáticas**: Configurar el updater de Tauri.

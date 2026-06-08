@@ -1,57 +1,41 @@
-# Makefile for gowerGUI (Tauri + SvelteKit project)
+# Makefile for gowerGUI (Wails v2 + SvelteKit project)
 
 # Define variables
+WAILS := wails
 NPM := npm
-TAURI := $(NPM) run tauri
-# Default target is "all". Override with `make build TARGET="deb"` or `make build TARGET="msi"`
-TARGET ?= all
+WAILS_TAGS := -tags webkit2_41
 
-.PHONY: all build run dev clean install
+.PHONY: all build dev clean install-deps
 
 # Default target
 all: build
 
 # Install frontend dependencies
-install:
+install-deps:
 	@echo "Installing Node.js dependencies..."
-	$(NPM) install
+	cd frontend && $(NPM) install
 
-# Build the SvelteKit frontend and then the Tauri application
-build: install
-	@echo "Building SvelteKit frontend..."
-	$(NPM) run build
-	@echo "Building Tauri application..."
-	$(TAURI) build --target $(TARGET)
+# Build the Wails application
+build: install-deps
+	@echo "Building Wails application..."
+	$(WAILS) build $(WAILS_TAGS)
 
 # Run the application in development mode
-run: install
-	$(TAURI) dev
+dev: install-deps
+	$(WAILS) dev $(WAILS_TAGS)
 
 # Clean generated build files
 clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf ./build
-	rm -rf ./src-tauri/target
+	rm -rf ./frontend/build
+	rm -f gowerui
 	@echo "Build artifacts cleaned."
 
-# Docker Builds
+# Docker Builds (Need to be updated for Wails if used)
 docker-linux:
-	docker build -t gowerui-linux -f Dockerfile.linux .
-	docker run --rm -v $(PWD)/src-tauri/target:/app/src-tauri/target gowerui-linux
+	@echo "Docker build for Wails not yet implemented in this Makefile"
 
 docker-windows:
-	@echo "--- Starting Windows Build in Docker ---"
-	docker build -t gowerui-windows -f Dockerfile.windows .
-	docker run --rm -v $(PWD)/src-tauri/target:/app/src-tauri/target gowerui-windows
-	@echo "--- Organizing Release Files ---"
-	@mkdir -p dist-releases/windows
-	@# Copy the Installer
-	@cp src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis/*.exe dist-releases/windows/ 2>/dev/null || echo "No installer found"
-	@# Run the portable script to gather all files
-	@chmod +x dist-windows-portable.sh
-	@./dist-windows-portable.sh
-	@mv dist-windows-portable dist-releases/windows/portable
-	@echo "--------------------------------------------------"
-	@echo "DONE! Your Windows files are ready in: dist-releases/windows/"
-	@ls -R dist-releases/windows/
-	@echo "--------------------------------------------------"
+	@echo "Building for Windows using Wails..."
+	$(WAILS) build -platform windows/amd64
