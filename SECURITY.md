@@ -10,14 +10,13 @@ Incluye tanta información como sea posible para ayudarnos a reproducir y soluci
 
 ## Medidas de Seguridad Actuales
 
-### Tauri Security
-- **Isolation Pattern**: Utilizamos el patrón de aislamiento de Tauri para separar el frontend del backend.
-- **Scope Restringido**: (En proceso) El acceso al sistema de archivos está restringido a directorios específicos necesarios para la aplicación.
-- **CSP**: Se implementa una Política de Seguridad de Contenido para prevenir XSS.
+### Seguridad en Wails
+- **Bindings Restringidos**: Solo las funciones necesarias están expuestas al frontend a través de los bindings de Wails.
+- **Comunicación Segura**: La comunicación entre el frontend y el backend se realiza a través del runtime de Wails.
 
 ### Advertencias Conocidas
 - La aplicación actualmente permite la ejecución de un binario externo (`gower`). Asegúrate de tener una versión confiable de este binario instalada.
-- El protocolo de assets (`asset:`) se utiliza para cargar imágenes locales.
+- El protocolo de assets local se utiliza para cargar imágenes desde el sistema de archivos (miniaturas).
 
 ## Versiones Soportadas
 
@@ -25,5 +24,5 @@ Actualmente solo soportamos la última versión estable del proyecto.
 
 | Versión | Soportada |
 | ------- | --------- |
-| 0.1.x   | ✅        |
-| < 0.1.0 | ❌        |
+| 0.2.x   | ✅        |
+| < 0.2.0 | ❌        |

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src-tauri/icons/128x128.png" alt="gowerGUI Logo" width="128">
+  <img src="frontend/static/favicon.png" alt="gowerGUI Logo" width="128">
 </p>
 
 # gowerUI
@@ -7,7 +7,7 @@
 > [!WARNING]
 > **Estado del Proyecto: Beta**. Esta aplicación se encuentra en una etapa temprana de desarrollo y requiere pruebas exhaustivas. Úsala bajo tu propia responsabilidad. El desarrollador no se hace responsable de posibles errores o comportamientos inesperados en tu sistema.
 
-**gowerUI** es una interfaz gráfica moderna, rápida y multiplataforma para el gestor de fondos de pantalla [gower](https://github.com/nefDevelop/gower). Construida con **Tauri v2** y **SvelteKit**, ofrece una experiencia nativa con un diseño refinado.
+**gowerUI** es una interfaz gráfica moderna, rápida y multiplataforma para el gestor de fondos de pantalla [gower](https://github.com/nefDevelop/gower). Construida con **Wails v2** y **SvelteKit**, ofrece una experiencia nativa con un diseño refinado.
 
 La aplicación integra el binario `gower` como un **sidecar**, lo que significa que no necesitas instalar nada por separado: todo lo necesario para gestionar tus fondos de pantalla viene incluido en el ejecutable.
 
@@ -23,42 +23,39 @@ La aplicación integra el binario `gower` como un **sidecar**, lo que significa 
 ## 🛠️ Tecnologías
 
 - **Frontend**: [SvelteKit](https://kit.svelte.dev/) + [Vite](https://vitejs.dev/)
-- **Backend**: [Rust](https://www.rust-lang.org/) + [Tauri v2](https://v2.tauri.app/)
+- **Backend**: [Go](https://go.dev/) + [Wails v2](https://wails.io/)
 - **Estilos**: Vanilla CSS (Diseño limpio y ligero)
 - **Sidecar**: [gower (Golang)](https://github.com/nefDevelop/gower)
 
 ## 💻 Desarrollo Local
 
 ### Requisitos
-- [Rust](https://www.rust-lang.org/tools/install) (stable)
+- [Go](https://go.dev/doc/install) (1.22+)
 - [Node.js](https://nodejs.org/) (v20+)
+- [Wails CLI](https://wails.io/docs/gettingstarted/installation)
 - Bibliotecas de sistema (en Linux): `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`.
 
 ### Pasos
 1. **Clonar y entrar**:
    ```bash
    git clone https://github.com/nefDevelop/gowerGUI.git
-   cd gowerGUI/gowerui
+   cd gowerGUI
    ```
-2. **Instalar dependencias**:
+2. **Ejecutar en modo dev**:
    ```bash
-   npm install
-   ```
-3. **Ejecutar**:
-   ```bash
-   npm run tauri dev
+   wails dev
    ```
 
-## 📦 Compilación y Versiones
+## 📦 Compilación
 
-El proyecto utiliza **GitHub Actions** para automatizar el ciclo de vida:
-- **Detección de Versiones**: Cada build descarga automáticamente la última versión estable del binario `gower`.
-- **Artefactos**: Se generan ejecutables listos para usar (`.AppImage`, `.deb` para Linux; `.msi`, `.exe` para Windows).
-- **Transparencia**: El archivo `src/lib/sidecar-info.json` registra exactamente qué versión del motor `gower` se está utilizando en cada compilación.
+Para compilar la aplicación para tu plataforma actual:
+```bash
+wails build
+```
 
 ## 🤝 Contribuir
 
-Si encuentras un error o tienes una idea para una mejor
+Si encuentras un error o tienes una idea para una mejora, ¡no dudes en abrir un issue o enviar un PR!
 
 ## 📄 Licencia
 
