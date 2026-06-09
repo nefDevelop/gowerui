@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"net/http"
@@ -10,9 +11,9 @@ import (
 	"runtime"
 	"strings"
 
+	"fyne.io/systray"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/menu"
-	"github.com/wailsapp/wails/v2/pkg/menu/keys"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
@@ -23,16 +24,23 @@ import (
 //go:embed all:frontend/build
 var assets embed.FS
 
+//go:embed frontend/static/favicon.png
+var icon []byte
+
 func main() {
+	// Hack for Wayland/Waybar compatibility
+	if runtime.GOOS == "linux" {
+		if os.Getenv("XDG_CURRENT_DESKTOP") == "" {
+			os.Setenv("XDG_CURRENT_DESKTOP", "Unity")
+		}
+	}
+
 	// Create an instance of the app structure
 	app := NewApp()
 
-	// Create a custom menu
+	// Create an empty menu to satisfy the OS/Wayland requirement for tray icons
+	// without showing any visible menu items.
 	AppMenu := menu.NewMenu()
-	FileMenu := AppMenu.AddSubmenu("File")
-	FileMenu.AddText("Quit", keys.CmdOrCtrl("q"), func(_ *menu.CallbackData) {
-		wailsRuntime.Quit(app.ctx)
-	})
 
 	// Create application with options
 	err := wails.Run(&options.App{
@@ -78,7 +86,40 @@ func main() {
 				http.NotFound(w, r)
 			}),
 		},
-		OnStartup: app.startup,
+		OnStartup: func(ctx context.Context) {
+			app.startup(ctx)
+			
+			// Start the system tray in a goroutine with a small delay
+			go func() {
+				// Give Wails a moment to initialize its own GTK/Wayland loop
+				runtime.Gosched()
+				
+				fmt.Println("[BACKEND] Iniciando System Tray...")
+				systray.Run(func() {
+					systray.SetIcon(icon)
+					systray.SetTitle("gowerui")
+					systray.SetTooltip("Gower Wallpaper Manager")
+
+					mShow := systray.AddMenuItem("Mostrar", "Mostrar la ventana")
+					systray.AddSeparator()
+					mQuit := systray.AddMenuItem("Salir", "Cerrar aplicación")
+
+					go func() {
+						for {
+							select {
+							case <-mShow.ClickedCh:
+								wailsRuntime.WindowShow(app.ctx)
+							case <-mQuit.ClickedCh:
+								wailsRuntime.Quit(app.ctx)
+							}
+						}
+					}()
+					fmt.Println("[BACKEND] System Tray listo.")
+				}, func() {
+					fmt.Println("[BACKEND] System Tray detenido.")
+				})
+			}()
+		},
 		Bind: []interface{}{
 			app,
 		},

@@ -47,9 +47,9 @@ Este documento describe los pasos necesarios y las características planificadas
     - [x] Portar lógica de `getAppContext` y resolución de rutas dinámicas.
     - [x] Implementar `checkBattery` para Linux y Windows en Go.
     - [x] Implementar `checkFileExists`.
-- [ ] **Gestión de Ventana y Tray**:
-    - [ ] Implementar menús del sistema (Tray) con Go Runtime. (Pendiente refinar posicionamiento).
-    - [ ] Replicar comportamiento de "Minimizar al cerrar" y control de visibilidad.
+- [x] **Gestión de Ventana y Tray**:
+    - [x] Implementar menús del sistema (Tray) con Go Runtime (vía `systray`).
+    - [x] Replicar comportamiento de "Minimizar al cerrar" y control de visibilidad.
 - [x] **Manejo de Archivos Local (Assets)**:
     - [x] Implementar `AssetsHandler` personalizado para servir miniaturas desde la carpeta de caché.
 - [x] **Refactor de Frontend**:

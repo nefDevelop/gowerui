@@ -218,7 +218,7 @@ func (a *App) PickDirectory() (string, error) {
 	})
 }
 
-// CloseApp closes the application
+// CloseApp hides the window instead of quitting, so it stays in the tray
 func (a *App) CloseApp() {
-	wailsRuntime.Quit(a.ctx)
+	wailsRuntime.WindowHide(a.ctx)
 }
