@@ -18,16 +18,20 @@ export function GetAppContext() {
   return window['go']['main']['App']['GetAppContext']();
 }
 
+export function GetGowerStatus() {
+  return window['go']['main']['App']['GetGowerStatus']();
+}
+
 export function OpenPath(arg1) {
   return window['go']['main']['App']['OpenPath'](arg1);
 }
 
-export function PickDirectory() {
-  return window['go']['main']['App']['PickDirectory']();
+export function PickDirectory(arg1) {
+  return window['go']['main']['App']['PickDirectory'](arg1);
 }
 
-export function PickFile() {
-  return window['go']['main']['App']['PickFile']();
+export function PickFile(arg1) {
+  return window['go']['main']['App']['PickFile'](arg1);
 }
 
 export function RunGowerCommand(arg1, arg2) {

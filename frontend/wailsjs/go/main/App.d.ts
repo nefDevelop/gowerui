@@ -10,11 +10,13 @@ export function CloseApp():Promise<void>;
 
 export function GetAppContext():Promise<main.AppContext>;
 
+export function GetGowerStatus():Promise<main.GowerStatus>;
+
 export function OpenPath(arg1:string):Promise<void>;
 
-export function PickDirectory():Promise<string>;
+export function PickDirectory(arg1:string):Promise<string>;
 
-export function PickFile():Promise<string>;
+export function PickFile(arg1:string):Promise<string>;
 
 export function RunGowerCommand(arg1:Array<string>,arg2:boolean):Promise<string>;
 

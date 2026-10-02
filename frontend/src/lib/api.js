@@ -146,6 +146,46 @@ export async function checkFileExists(path) {
 }
 
 /**
+ * Where the gower binary is, and whether it can be found at all.
+ * @returns {Promise<{resolved_path: string, configured_path: string, available: boolean, error: string}>}
+ */
+export async function getGowerStatus() {
+  // @ts-ignore
+  return await window.go.main.App.GetGowerStatus();
+}
+
+/**
+ * Persists the path of the gower binary. An empty path clears the setting and
+ * goes back to automatic discovery.
+ * @param {string} path
+ */
+export async function setCustomGowerPath(path) {
+  // @ts-ignore
+  return await window.go.main.App.SetCustomGowerPath(path);
+}
+
+/**
+ * Opens the native dialog to pick the gower executable. The title is passed in
+ * because native dialogs are not covered by the frontend i18n.
+ * @param {string} title
+ * @returns {Promise<string>} the selected path, or "" if the user cancelled
+ */
+export async function pickGowerBinary(title) {
+  // @ts-ignore
+  return await window.go.main.App.PickFile(title);
+}
+
+/**
+ * Opens the native dialog to pick a directory. See pickGowerBinary for the title.
+ * @param {string} title
+ * @returns {Promise<string>}
+ */
+export async function pickDirectory(title) {
+  // @ts-ignore
+  return await window.go.main.App.PickDirectory(title);
+}
+
+/**
  * Maps items to include the correct thumbnail URL for Wails.
  * @param {any[]} items
  * @param {string} cachePath

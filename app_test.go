@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -47,6 +48,17 @@ func fakeGower(t *testing.T, script string) string {
 	return path
 }
 
+// isolateHome apunta HOME y USERPROFILE a un directorio temporal vacío, para que
+// los tests que tocan la configuración de la GUI no lean ni escriban el
+// settings.json real del usuario.
+func isolateHome(t *testing.T) {
+	t.Helper()
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+}
+
 // isolateHostWithoutGower limpia el entorno y verifica que no exista un gower
 // real donde lo buscaría resolveGowerPath. Si lo hay, el escenario "no
 // encontrado" no es reproducible y el test se omite en lugar de dar un falso
@@ -54,10 +66,8 @@ func fakeGower(t *testing.T, script string) string {
 func isolateHostWithoutGower(t *testing.T) {
 	t.Helper()
 
-	dir := t.TempDir()
-	t.Setenv("HOME", dir)
-	t.Setenv("USERPROFILE", dir)
-	t.Setenv("PATH", filepath.Join(dir, "empty-bin"))
+	isolateHome(t)
+	t.Setenv("PATH", filepath.Join(t.TempDir(), "empty-bin"))
 
 	for _, p := range []string{"/usr/local/bin/gower", "/usr/bin/gower"} {
 		if _, err := os.Stat(p); err == nil {
@@ -87,9 +97,12 @@ func TestSetCustomGowerPath(t *testing.T) {
 	// Un PATH válido con otro gower no debe ganar al path configurado.
 	fakeGower(t, "exit 0")
 	custom := fakeGowerAt(t, filepath.Join(t.TempDir(), "custom-gower"))
+	isolateHome(t)
 
 	app := NewApp()
-	app.SetCustomGowerPath(custom)
+	if err := app.SetCustomGowerPath(custom); err != nil {
+		t.Fatalf("SetCustomGowerPath() error inesperado: %v", err)
+	}
 
 	if app.customPath != custom {
 		t.Fatalf("customPath = %q, se esperaba %q", app.customPath, custom)
@@ -101,6 +114,212 @@ func TestSetCustomGowerPath(t *testing.T) {
 	}
 	if got != custom {
 		t.Errorf("resolveGowerPath() = %q, se esperaba el path configurado %q", got, custom)
+	}
+}
+
+func TestSetCustomGowerPathRejectsMissingFile(t *testing.T) {
+	isolateHome(t)
+	app := NewApp()
+
+	missing := filepath.Join(t.TempDir(), "gower-inexistente")
+
+	if err := app.SetCustomGowerPath(missing); err == nil {
+		t.Fatal("se esperaba error al guardar una ruta que no existe")
+	}
+	if app.customPath != "" {
+		t.Errorf("customPath = %q, un path inválido no debe aplicarse", app.customPath)
+	}
+}
+
+func TestSetCustomGowerPathRejectsDirectory(t *testing.T) {
+	isolateHome(t)
+	dir := t.TempDir()
+	app := NewApp()
+
+	if err := app.SetCustomGowerPath(dir); err == nil {
+		t.Fatal("se esperaba error al guardar un directorio")
+	}
+}
+
+func TestSetCustomGowerPathPersistsAcrossRestarts(t *testing.T) {
+	isolateHome(t)
+	custom := fakeGowerAt(t, filepath.Join(t.TempDir(), "custom-gower"))
+
+	first := NewApp()
+	if err := first.SetCustomGowerPath(custom); err != nil {
+		t.Fatalf("SetCustomGowerPath() error inesperado: %v", err)
+	}
+
+	// App nueva, mismo HOME: debe recuperar el path del disco.
+	second := NewApp()
+	if err := second.loadSettings(); err != nil {
+		t.Fatalf("loadSettings() error inesperado: %v", err)
+	}
+
+	if second.customPath != custom {
+		t.Errorf("customPath tras reiniciar = %q, se esperaba %q", second.customPath, custom)
+	}
+
+	got, err := second.resolveGowerPath()
+	if err != nil {
+		t.Fatalf("resolveGowerPath() error inesperado: %v", err)
+	}
+	if got != custom {
+		t.Errorf("resolveGowerPath() = %q, se esperaba el path recuperado %q", got, custom)
+	}
+}
+
+func TestSetCustomGowerPathEmptyClearsSetting(t *testing.T) {
+	isolateHome(t)
+	custom := fakeGowerAt(t, filepath.Join(t.TempDir(), "custom-gower"))
+
+	app := NewApp()
+	if err := app.SetCustomGowerPath(custom); err != nil {
+		t.Fatalf("SetCustomGowerPath() error inesperado: %v", err)
+	}
+
+	if err := app.SetCustomGowerPath(""); err != nil {
+		t.Fatalf("SetCustomGowerPath(\"\") error inesperado: %v", err)
+	}
+
+	if app.customPath != "" {
+		t.Errorf("customPath = %q, se esperaba vacío", app.customPath)
+	}
+
+	// Y el valor persistido también debe estar limpio.
+	reloaded := NewApp()
+	if err := reloaded.loadSettings(); err != nil {
+		t.Fatalf("loadSettings() error inesperado: %v", err)
+	}
+	if reloaded.customPath != "" {
+		t.Errorf("customPath tras recargar = %q, se esperaba vacío", reloaded.customPath)
+	}
+}
+
+func TestLoadSettingsWithoutFileIsNotAnError(t *testing.T) {
+	isolateHome(t)
+
+	app := NewApp()
+	if err := app.loadSettings(); err != nil {
+		t.Errorf("loadSettings() = %v, un HOME vacío no debe dar error", err)
+	}
+	if app.customPath != "" {
+		t.Errorf("customPath = %q, se esperaba vacío", app.customPath)
+	}
+}
+
+// Un settings.json corrupto no debe dejar la app sin motor: se descarta y se
+// sigue con el autodescubrimiento.
+func TestLoadSettingsIgnoresMalformedFile(t *testing.T) {
+	isolateHome(t)
+
+	path, err := (&App{}).settingsPath()
+	if err != nil {
+		t.Fatalf("settingsPath() error inesperado: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("{no es json"), 0o644); err != nil {
+		t.Fatalf("no se pudo escribir el fichero corrupto: %v", err)
+	}
+
+	// El autodescubrimiento debe seguir funcionando.
+	found := fakeGower(t, "exit 0")
+
+	app := NewApp()
+	if err := app.loadSettings(); err != nil {
+		t.Errorf("loadSettings() = %v, un fichero corrupto no debe propagar error", err)
+	}
+
+	got, err := app.resolveGowerPath()
+	if err != nil {
+		t.Fatalf("resolveGowerPath() error inesperado tras fichero corrupto: %v", err)
+	}
+	if got != found {
+		t.Errorf("resolveGowerPath() = %q, se esperaba el gower del PATH %q", got, found)
+	}
+}
+
+func TestSettingsFileIsValidJSON(t *testing.T) {
+	isolateHome(t)
+	custom := fakeGowerAt(t, filepath.Join(t.TempDir(), "custom-gower"))
+
+	app := NewApp()
+	if err := app.SetCustomGowerPath(custom); err != nil {
+		t.Fatalf("SetCustomGowerPath() error inesperado: %v", err)
+	}
+
+	path, err := app.settingsPath()
+	if err != nil {
+		t.Fatalf("settingsPath() error inesperado: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("no se pudo leer %s: %v", path, err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("el fichero escrito no es JSON válido: %v\n%s", err, data)
+	}
+	if parsed["gower_path"] != custom {
+		t.Errorf("gower_path = %v, se esperaba %q", parsed["gower_path"], custom)
+	}
+}
+
+func TestGetGowerStatusReportsResolvedPath(t *testing.T) {
+	// Aislamos HOME antes de crear el fake: fakeGower toca el PATH y el HOME
+	// debe seguir limpio para que el test sea determinista.
+	isolateHostWithoutGower(t)
+	found := fakeGower(t, "exit 0")
+
+	app := NewApp()
+
+	status := app.GetGowerStatus()
+	if !status.Available {
+		t.Fatalf("Available = false, se esperaba true. Error: %s", status.Error)
+	}
+	if status.ResolvedPath != found {
+		t.Errorf("ResolvedPath = %q, se esperaba %q", status.ResolvedPath, found)
+	}
+	if status.ConfiguredPath != "" {
+		t.Errorf("ConfiguredPath = %q, se esperaba vacío", status.ConfiguredPath)
+	}
+	if status.Error != "" {
+		t.Errorf("Error = %q, se esperaba vacío cuando está disponible", status.Error)
+	}
+}
+
+func TestGetGowerStatusReportsConfiguredPath(t *testing.T) {
+	isolateHome(t)
+	custom := fakeGowerAt(t, filepath.Join(t.TempDir(), "custom-gower"))
+
+	app := NewApp()
+	if err := app.SetCustomGowerPath(custom); err != nil {
+		t.Fatalf("SetCustomGowerPath() error inesperado: %v", err)
+	}
+
+	status := app.GetGowerStatus()
+	if status.ConfiguredPath != custom {
+		t.Errorf("ConfiguredPath = %q, se esperaba %q", status.ConfiguredPath, custom)
+	}
+	if !status.Available {
+		t.Errorf("Available = false, se esperaba true. Error: %s", status.Error)
+	}
+}
+
+func TestGetGowerStatusReportsMissingBinary(t *testing.T) {
+	isolateHostWithoutGower(t)
+
+	app := NewApp()
+
+	status := app.GetGowerStatus()
+	if status.Available {
+		t.Fatal("Available = true, se esperaba false")
+	}
+	if status.ResolvedPath != "" {
+		t.Errorf("ResolvedPath = %q, se esperaba vacío", status.ResolvedPath)
+	}
+	if status.Error == "" {
+		t.Error("Error vacío: la UI necesita saber por qué no está disponible")
 	}
 }
 

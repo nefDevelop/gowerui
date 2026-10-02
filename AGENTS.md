@@ -90,24 +90,35 @@ cambio de UI, un fix puntual o configuración.
    `lookupGowerPath` **y** el paso de empaquetado del workflow, que deben
    seguir coincidiendo.
 
-5. **Los tests aíslan el host.** `fakeGower` / `fakeGowerAt` crean scripts
-   falsos; `isolateHostWithoutGower` vacía `PATH` y `HOME` y **omite** el test
-   si detecta un `gower` real en el host, para no dar falsos positivos. Al
-   añadir un caso "no encontrado", respétalo.
+5. **La config de la GUI vive en `~/.config/gowerui/settings.json`**, no en el
+   config de `gower`: son cosas que `gower` no necesita saber. Se carga en
+   `startup` antes de la primera llamada al CLI. Si añades un ajuste de la GUI,
+   añádelo a `appSettings`, no a la config de gower. Un fichero ausente ni un
+   fichero corrupto deben dejar la app funcionando: se ignoran con un log.
 
-5. **El path en background no es testeable unitariamente.**
+6. **Los diálogos nativos no pasan por el i18n del frontend.** Por eso
+   `PickFile` y `PickDirectory` reciben el título como parámetro y el
+   llamador lo pasa con `$t(...)`. Si añades un diálogo nuevo, mantén el patrón.
+
+7. **Los tests aíslan el host.** `fakeGower` / `fakeGowerAt` crean scripts
+   falsos; `isolateHostWithoutGower` vacía `PATH` y `HOME` y **omite** el test
+   si detecta un `gower` real en el host, para no dar falsos positivos.
+   `isolateHome` aísla solo el `HOME`, que es lo que necesitan los tests que
+   tocan `settings.json`. Al añadir un caso "no encontrado", respétalos.
+
+8. **El path en background no es testeable unitariamente.**
    `RunGowerCommand(..., background=true)` lanza una goroutine que llama
    `wailsRuntime.EventsEmit(a.ctx, ...)`, que hace panic con `ctx == nil`.
    Si necesitas cubrirlo, requiere inyectar el contexto de Wails.
 
-6. **`extractJson` (`api.js`) escanea por balanceo, no por `lastIndexOf`.**
+9. **`extractJson` (`api.js`) escanea por balanceo, no por `lastIndexOf`.**
    El CLI antepone logs (`[DEBUG] ...`) a la salida, así que el primer `[` o
    `{` puede no abrir el JSON. La función prueba cada candidato en orden de
    aparición, respeta cadenas y escapes, y devuelve el primero que parsea. Si
    la tocas, conserva esos casos: hay tests de anidación, corchetes dentro de
    cadenas, escapes y JSON truncado.
 
-7. **Los stores de Svelte son singletons a nivel de módulo.** El estado persiste
+10. **Los stores de Svelte son singletons a nivel de módulo.** El estado persiste
    entre tests del mismo fichero. Límpialos en `beforeEach`/`afterEach` (patrón
    `clearNotifications()`).
 

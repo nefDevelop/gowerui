@@ -1,7 +1,15 @@
 <script>
-    import { gower, checkBattery } from "$lib/api";
+    import {
+        gower,
+        checkBattery,
+        getGowerStatus,
+        setCustomGowerPath,
+        pickGowerBinary,
+        pickDirectory,
+    } from "$lib/api";
     import { t, locale } from "$lib/stores/i18n";
     import { theme } from "$lib/stores/theme";
+    import { notifications } from "$lib/stores/notifications";
     import { createEventDispatcher, onMount } from "svelte";
     import { slide, fade } from "svelte/transition";
 
@@ -9,15 +17,72 @@
     let { config = $bindable(), status } = $props();
 
     const dispatch = createEventDispatcher();
-    
+
     let showProviders = $state(false);
     let newProvider = $state({ name: "", url: "", key: "" });
     let hasBattery = $state(false);
     let providerToDelete = $state({ open: false, key: "", name: "" });
 
+    /**
+     * Dónde está el binario de gower. null mientras no se ha consultado.
+     * @type {{resolved_path: string, configured_path: string, available: boolean, error: string} | null}
+     */
+    let gowerStatus = $state(null);
+    let savingGowerPath = $state(false);
+
     onMount(async () => {
         hasBattery = await checkBattery();
+        gowerStatus = await getGowerStatus();
     });
+
+    /** Refresca el estado del sidecar, p. ej. tras cambiar la ruta. */
+    async function refreshGowerStatus() {
+        gowerStatus = await getGowerStatus();
+    }
+
+    async function browseGowerPath() {
+        try {
+            const selected = await pickGowerBinary(
+                $t("settings.gower_path_dialog"),
+            );
+            if (!selected) return;
+            await applyGowerPath(selected);
+        } catch (e) {
+            console.error("[SETTINGS] Failed to open gower dialog:", e);
+        }
+    }
+
+    async function clearGowerPath() {
+        try {
+            await applyGowerPath("");
+        } catch (e) {
+            console.error("[SETTINGS] Failed to clear gower path:", e);
+        }
+    }
+
+    /**
+     * Guarda la ruta indicada y refleja el resultado en la UI.
+     * @param {string} path
+     */
+    async function applyGowerPath(path) {
+        savingGowerPath = true;
+        try {
+            await setCustomGowerPath(path);
+            await refreshGowerStatus();
+            dispatch("refresh");
+            notifications.add(
+                path
+                    ? $t("settings.gower_path_saved")
+                    : $t("settings.gower_path_cleared"),
+                "success",
+            );
+        } catch (err) {
+            await refreshGowerStatus();
+            notifications.add($t("settings.gower_path_invalid"), "error");
+        } finally {
+            savingGowerPath = false;
+        }
+    }
 
     /**
      * @param {string} key
@@ -57,8 +122,9 @@
 
     async function pickWallpaperFolder() {
         try {
-            // @ts-ignore
-            const selected = await window.go.main.App.PickDirectory();
+            const selected = await pickDirectory(
+                $t("settings.wallpapers_folder"),
+            );
             if (selected) {
                 updateConfig("paths.wallpapers", selected);
             }
@@ -266,6 +332,51 @@
                     <option value="clone">{$t("settings.monitor.clone")}</option
                     >
                 </select>
+            </div>
+        </div>
+
+        <div class="section glass-card">
+            <h3>{$t("settings.gower_path")}</h3>
+            <div class="col">
+                <div class="gower-path-status" data-available={gowerStatus?.available}>
+                    {#if !gowerStatus}
+                        <span class="material-icons spinner">progress_activity</span>
+                    {:else if gowerStatus.available}
+                        <span class="material-icons ok">check_circle</span>
+                        <span class="path" title={gowerStatus.resolved_path}>
+                            {gowerStatus.resolved_path}
+                        </span>
+                    {:else}
+                        <span class="material-icons missing">error_outline</span>
+                        <span class="path">
+                            {$t("settings.gower_path_not_found")}
+                        </span>
+                    {/if}
+                </div>
+
+                <p class="subtext">
+                    {#if gowerStatus?.configured_path}
+                        {$t("settings.gower_path")}:
+                        <code>{gowerStatus.configured_path}</code>
+                    {:else}
+                        {$t("settings.gower_path_auto")}
+                    {/if}
+                </p>
+
+                {#if gowerStatus && !gowerStatus.available}
+                    <p class="subtext error-text">{gowerStatus.error}</p>
+                {/if}
+
+                <div class="gower-path-actions">
+                    <button class="btn-secondary" onclick={browseGowerPath} disabled={savingGowerPath}>
+                        {$t("settings.gower_path_browse")}
+                    </button>
+                    {#if gowerStatus?.configured_path}
+                        <button class="btn-secondary" onclick={clearGowerPath} disabled={savingGowerPath}>
+                            {$t("settings.gower_path_clear")}
+                        </button>
+                    {/if}
+                </div>
             </div>
         </div>
 
@@ -758,6 +869,74 @@
         opacity: 0.3;
         font-size: 0.7rem;
         margin-top: auto;
+    }
+
+    .gower-path-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        min-width: 0;
+    }
+
+    .gower-path-status .material-icons {
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .gower-path-status .ok {
+        color: var(--success, #03dac6);
+    }
+
+    .gower-path-status .missing {
+        color: var(--error, #cf6679);
+    }
+
+    .gower-path-status .spinner {
+        opacity: 0.5;
+    }
+
+    .gower-path-status .path {
+        /* Una ruta puede ser larga; que se corte y no rompa el layout. */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .error-text {
+        color: var(--error, #cf6679);
+        word-break: break-word;
+    }
+
+    code {
+        font-size: 0.75rem;
+        opacity: 0.8;
+        word-break: break-all;
+    }
+
+    .gower-path-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .gower-path-actions button {
+        font-size: 0.75rem;
+        padding: 6px 10px;
+        border-radius: 4px;
+        border: 1px solid var(--glass-border);
+        background: transparent;
+        color: var(--on-surface);
+        cursor: pointer;
+    }
+
+    .gower-path-actions button:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .gower-path-actions button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
     .header-row {

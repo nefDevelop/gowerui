@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,6 +19,16 @@ import (
 type App struct {
 	ctx        context.Context
 	customPath string
+	settings   appSettings
+}
+
+// appSettings es la configuración propia de la GUI. No forma parte del config de
+// gower porque son cosas que gower no necesita saber: dónde vive su propio
+// ejecutable, por ejemplo.
+type appSettings struct {
+	// GowerPath es la ruta del binario de gower elegida en Ajustes. Vacía
+	// significa "descúbrelo solo" (junto al ejecutable, PATH, etc.).
+	GowerPath string `json:"gower_path"`
 }
 
 // NewApp creates a new App application struct
@@ -28,6 +40,71 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	// Recuperar la ruta guardada es lo primero: si el usuario la configuró en
+	// una sesión anterior, todas las llamadas a gower dependen de ella.
+	if err := a.loadSettings(); err != nil {
+		fmt.Printf("[BACKEND] Could not load settings: %v\n", err)
+	}
+}
+
+// settingsPath devuelve la ruta de ~/.config/gowerui/settings.json, creando el
+// directorio si hace falta.
+func (a *App) settingsPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	dir := filepath.Join(home, ".config", "gowerui")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("could not create config directory %s: %w", dir, err)
+	}
+
+	return filepath.Join(dir, "settings.json"), nil
+}
+
+// loadSettings lee la configuración desde disco. Un fichero ausente no es un
+// error: es el estado por defecto de una app recién instalada.
+func (a *App) loadSettings() error {
+	path, err := a.settingsPath()
+	if err != nil {
+		return err
+	}
+
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	var s appSettings
+	if err := json.Unmarshal(data, &s); err != nil {
+		// Un fichero corrupto no debe dejar la app sin motor: se descarta y se
+		// sigue con el autodescubrimiento.
+		fmt.Printf("[BACKEND] Ignoring malformed settings file %s: %v\n", path, err)
+		return nil
+	}
+
+	a.settings = s
+	a.customPath = s.GowerPath
+	return nil
+}
+
+// saveSettings escribe la configuración a disco.
+func (a *App) saveSettings() error {
+	path, err := a.settingsPath()
+	if err != nil {
+		return err
+	}
+
+	data, err := json.MarshalIndent(a.settings, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, 0o644)
 }
 
 type AppContext struct {
@@ -212,9 +289,54 @@ func gowerNotFoundError(customPath string) error {
 	return fmt.Errorf("gower executable not found next to the application, in PATH or in any common location. Install it or select it in Settings")
 }
 
-// SetCustomGowerPath sets a custom path for the gower binary
-func (a *App) SetCustomGowerPath(path string) {
+// GowerStatus describes what the app knows about the gower binary, so the UI can
+// tell the user where it was found, or what it has configured, or what is wrong.
+type GowerStatus struct {
+	// ResolvedPath is the binary that would be used right now, empty if none was
+	// found.
+	ResolvedPath string `json:"resolved_path"`
+	// ConfiguredPath is the path set in Settings, empty if relying on discovery.
+	ConfiguredPath string `json:"configured_path"`
+	// Available is false when gower cannot be found at all.
+	Available bool `json:"available"`
+	// Error carries the reason when Available is false.
+	Error string `json:"error"`
+}
+
+// GetGowerStatus returns where gower is, and whether it can be found at all.
+func (a *App) GetGowerStatus() GowerStatus {
+	status := GowerStatus{ConfiguredPath: a.settings.GowerPath}
+
+	resolved, err := a.resolveGowerPath()
+	if err != nil {
+		status.Available = false
+		status.Error = err.Error()
+		return status
+	}
+
+	status.Available = true
+	status.ResolvedPath = resolved
+	return status
+}
+
+// SetCustomGowerPath sets and persists a custom path for the gower binary.
+// An empty path clears the setting and goes back to automatic discovery.
+func (a *App) SetCustomGowerPath(path string) error {
+	if path != "" && !isRegularFile(path) {
+		return fmt.Errorf("no such file: %s", path)
+	}
+
+	a.settings.GowerPath = path
 	a.customPath = path
+
+	if err := a.saveSettings(); err != nil {
+		// El path se queda aplicado en memoria aunque no se pueda persistir:
+		// es mejor que la app funcione en esta sesión que no funcionar.
+		fmt.Printf("[BACKEND] Could not persist settings: %v\n", err)
+		return err
+	}
+
+	return nil
 }
 
 // CheckBattery returns true if a battery is detected
@@ -265,23 +387,26 @@ func (a *App) OpenPath(path string) error {
 	return cmd.Start()
 }
 
-// PickFile opens a file dialog to select the gower executable
-func (a *App) PickFile() (string, error) {
+// PickFile opens a file dialog to select the gower executable. The title is
+// passed in so the caller can localise it: a native dialog is not covered by
+// the frontend i18n.
+func (a *App) PickFile(title string) (string, error) {
 	return wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
-		Title: "Selecciona el ejecutable de Gower",
+		Title: title,
 		Filters: []wailsRuntime.FileFilter{
 			{
-				DisplayName: "Ejecutables",
+				DisplayName: "Executables",
 				Pattern:     "*.exe;gower;gower-linux;gower-windows*",
 			},
 		},
 	})
 }
 
-// PickDirectory opens a directory dialog
-func (a *App) PickDirectory() (string, error) {
+// PickDirectory opens a directory dialog. The title is passed in so the caller
+// can localise it.
+func (a *App) PickDirectory(title string) (string, error) {
 	return wailsRuntime.OpenDirectoryDialog(a.ctx, wailsRuntime.OpenDialogOptions{
-		Title: "Selecciona la carpeta de Wallpapers",
+		Title: title,
 	})
 }
 

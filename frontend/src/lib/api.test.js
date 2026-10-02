@@ -1,6 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { runGower, mapThumbnails, normalizeId, gower, getAppContext, checkBattery, checkFileExists } from './api';
+import {
+    runGower,
+    mapThumbnails,
+    normalizeId,
+    gower,
+    getAppContext,
+    checkBattery,
+    checkFileExists,
+    getGowerStatus,
+    setCustomGowerPath,
+    pickGowerBinary,
+    pickDirectory,
+} from './api';
 import { notifications } from './stores/notifications';
 
 /** Mock del binding Wails `window.go.main.App`. */
@@ -11,6 +23,10 @@ function mockBackend(overrides = {}) {
         CheckBattery: vi.fn().mockResolvedValue(true),
         CheckFileExists: vi.fn().mockReturnValue(true),
         OpenPath: vi.fn().mockResolvedValue(undefined),
+        GetGowerStatus: vi.fn().mockResolvedValue({ resolved_path: '/usr/bin/gower', configured_path: '', available: true, error: '' }),
+        SetCustomGowerPath: vi.fn().mockResolvedValue(undefined),
+        PickFile: vi.fn().mockResolvedValue(''),
+        PickDirectory: vi.fn().mockResolvedValue(''),
         ...overrides,
     };
     // @ts-ignore
@@ -251,6 +267,70 @@ describe('api / thin backend delegates', () => {
         const app = mockBackend();
         await expect(checkFileExists('/tmp/a.png')).resolves.toBe(true);
         expect(app.CheckFileExists).toHaveBeenCalledWith('/tmp/a.png');
+    });
+});
+
+describe('api / gower binary path', () => {
+    it('should delegate getGowerStatus', async () => {
+        const app = mockBackend();
+        const status = await getGowerStatus();
+        expect(status.available).toBe(true);
+        expect(status.resolved_path).toBe('/usr/bin/gower');
+        expect(app.GetGowerStatus).toHaveBeenCalled();
+    });
+
+    it('should report an unavailable gower without throwing', async () => {
+        mockBackend({
+            GetGowerStatus: vi.fn().mockResolvedValue({
+                resolved_path: '',
+                configured_path: '',
+                available: false,
+                error: 'gower executable not found',
+            }),
+        });
+
+        const status = await getGowerStatus();
+        expect(status.available).toBe(false);
+        expect(status.error).toBe('gower executable not found');
+    });
+
+    it('should persist the selected gower path', async () => {
+        const app = mockBackend();
+        await setCustomGowerPath('/opt/gower');
+        expect(app.SetCustomGowerPath).toHaveBeenCalledWith('/opt/gower');
+    });
+
+    it('should allow clearing the gower path', async () => {
+        const app = mockBackend();
+        await setCustomGowerPath('');
+        expect(app.SetCustomGowerPath).toHaveBeenCalledWith('');
+    });
+
+    it('should propagate a rejected path so the UI can warn', async () => {
+        mockBackend({ SetCustomGowerPath: vi.fn().mockRejectedValue('no such file: /nope') });
+
+        await expect(setCustomGowerPath('/nope')).rejects.toBe('no such file: /nope');
+    });
+
+    // El título se pasa desde el caller porque los diálogos nativos no pasan por
+    // el i18n del frontend.
+    it('should pass the localised title to the file dialog', async () => {
+        const app = mockBackend({ PickFile: vi.fn().mockResolvedValue('/opt/gower') });
+
+        await expect(pickGowerBinary('Select the gower executable')).resolves.toBe('/opt/gower');
+        expect(app.PickFile).toHaveBeenCalledWith('Select the gower executable');
+    });
+
+    it('should return an empty string when the file dialog is cancelled', async () => {
+        mockBackend({ PickFile: vi.fn().mockResolvedValue('') });
+        await expect(pickGowerBinary('t')).resolves.toBe('');
+    });
+
+    it('should pass the localised title to the directory dialog', async () => {
+        const app = mockBackend({ PickDirectory: vi.fn().mockResolvedValue('/home/u/walls') });
+
+        await expect(pickDirectory('Wallpapers Folder')).resolves.toBe('/home/u/walls');
+        expect(app.PickDirectory).toHaveBeenCalledWith('Wallpapers Folder');
     });
 });
 

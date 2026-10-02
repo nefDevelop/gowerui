@@ -16,6 +16,24 @@ export namespace main {
 	        this.user_home = source["user_home"];
 	    }
 	}
+	export class GowerStatus {
+	    resolved_path: string;
+	    configured_path: string;
+	    available: boolean;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GowerStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.resolved_path = source["resolved_path"];
+	        this.configured_path = source["configured_path"];
+	        this.available = source["available"];
+	        this.error = source["error"];
+	    }
+	}
 
 }
 

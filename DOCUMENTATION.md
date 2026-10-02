@@ -45,14 +45,34 @@ frontend son sus métodos públicos; los no exportados son internos.
 | Método | Propósito | Notas |
 |---|---|---|
 | `GetAppContext()` | Devuelve `cache_path`, `config_path`, `user_home` | Crea los directorios si no existen. En Windows usa `AppData`; en el resto `~/.config` y `~/.cache` |
-| `RunGowerCommand(args, background)` | Ejecuta el CLI y devuelve stdout+stderr | Rechaza `args` vacío con error en vez de hacer panic. En Linux, `set` y `daemon` se lanzan vía `sh -c` para resolver bien el entorno |
-| `SetCustomGowerPath(path)` | Fija la ruta del binario | Tiene prioridad sobre `$PATH` |
+| `RunGowerCommand(args, background)` | Ejecuta el CLI y devuelve stdout+stderr | Rechaza `args` vacío con error en vez de hacer panic. Se ejecuta **siempre** con `exec.Command`, nunca por shell: los args incluyen ids de proveedores remotos y rutas del disco |
+| `GetGowerStatus()` | Dónde está `gower`, y si está disponible | Devuelve `resolved_path`, `configured_path`, `available` y `error`, que es lo que la UI necesita para explicar la situación |
+| `SetCustomGowerPath(path)` | Fija y **persiste** la ruta del binario | Cadena vacía = volver al autodescubrimiento. Valida que exista y sea un fichero. Devuelve error si no se puede guardar |
 | `CheckBattery()` | ¿Hay batería? | Linux: lee `/sys/class/power_supply`. Windows: PowerShell `Win32_Battery`. Otros: `true` |
 | `CheckFileExists(path)` | Existencia de fichero | Nunca devuelve error, solo bool |
 | `OpenPath(path)` | Abre fichero/URL con el handler del sistema | `xdg-open` / `open` / `explorer` |
-| `PickFile()` | Diálogo para elegir el ejecutable `gower` | Requiere contexto de Wails |
-| `PickDirectory()` | Diálogo para elegir carpeta de wallpapers | Requiere contexto de Wails |
+| `PickFile(title)` | Diálogo para elegir el ejecutable `gower` | El título lo pasa el caller: los diálogos nativos no pasan por el i18n del frontend. Requiere contexto de Wails |
+| `PickDirectory(title)` | Diálogo para elegir carpeta de wallpapers | Igual que `PickFile` con el título |
 | `CloseApp()` | Oculta la ventana (no cierra la app) | Requiere contexto de Wails |
+
+### 2.1.1 Configuración propia
+
+La GUI guarda su configuración en `~/.config/gowerui/settings.json`, separada
+del config de `gower` porque son cosas que `gower` no necesita saber:
+
+```json
+{
+  "gower_path": "/opt/gower/bin/gower"
+}
+```
+
+`gower_path` es la ruta elegida en Ajustes; vacía significa "descúbrelo solo".
+Se carga en `startup` (antes de la primera llamada al CLI) y se escribe en cada
+cambio.
+
+Un `settings.json` ausente es el estado normal de una instalación nueva, no un
+error. Uno corrupto se descarta con un log en vez de propagar: es preferible
+quedarse sin ruta guardada que dejar la app sin motor.
 
 ### 2.2 Resolución del sidecar
 
