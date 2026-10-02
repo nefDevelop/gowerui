@@ -54,12 +54,12 @@ func main() {
 				if strings.HasPrefix(r.URL.Path, "/local-asset/") {
 					// 1. Get the raw path after the prefix
 					rawPath := strings.TrimPrefix(r.URL.Path, "/local-asset/")
-					
+
 					// 2. Remove any leading slashes that might cause // (double slash)
 					for strings.HasPrefix(rawPath, "/") {
 						rawPath = strings.TrimPrefix(rawPath, "/")
 					}
-					
+
 					// 3. Unescape URL
 					decodedPath, err := url.PathUnescape(rawPath)
 					if err != nil {
@@ -71,7 +71,7 @@ func main() {
 					if runtime.GOOS != "windows" && !strings.HasPrefix(decodedPath, "/") {
 						decodedPath = "/" + decodedPath
 					}
-					
+
 					// 5. Clean path
 					decodedPath = filepath.Clean(decodedPath)
 
@@ -88,12 +88,12 @@ func main() {
 		},
 		OnStartup: func(ctx context.Context) {
 			app.startup(ctx)
-			
+
 			// Start the system tray in a goroutine with a small delay
 			go func() {
 				// Give Wails a moment to initialize its own GTK/Wayland loop
 				runtime.Gosched()
-				
+
 				fmt.Println("[BACKEND] Iniciando System Tray...")
 				systray.Run(func() {
 					systray.SetIcon(icon)
