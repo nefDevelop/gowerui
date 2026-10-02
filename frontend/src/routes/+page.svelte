@@ -268,13 +268,15 @@
     async function handleDownload(item) {
         if (!item) return;
         const snap = $state.snapshot(item);
-        const nid = notificationsStore.add("Descargando...", "loading");
+        // Un solo toast que mutamos de estado a estado. Antes se creaban dos y
+        // el segundo heredaba timeout=undefined, así que nunca se eliminaba.
+        const toastId = notificationsStore.add("Descargando...", "info", 0);
         try {
             await gower.download(snap.id);
-            notificationsStore.add("Descarga iniciada", "success", nid);
+            notificationsStore.update(toastId, "Descarga iniciada", "success");
             // Refresh feed happens via background event
         } catch (e) { // Keep error for user feedback
-            notificationsStore.add("Error al descargar", "error", nid);
+            notificationsStore.update(toastId, "Error al descargar", "error", 5000);
             console.error("Download failed:", e);
         }
     }
