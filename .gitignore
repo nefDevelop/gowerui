@@ -2,6 +2,7 @@
 Thumbs.db
 node_modules
 build/
+.build-stamp
 .svelte-kit/
 /package
 .env
@@ -10,7 +11,15 @@ build/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Rust / Tauri
+# Release bundles
+gowerui-linux-portable/
+gowerui-windows-portable/
+gowerui-*-portable.tar.gz
+gowerui-*-portable.zip
+sidecar/
+final-assets/
+
+# Rust / Tauri (restos de la era anterior a Wails)
 src-tauri/target/
 src-tauri/gen/schemas
 src-tauri/binaries/
