@@ -106,10 +106,12 @@ cambio de UI, un fix puntual o configuración.
    `isolateHome` aísla solo el `HOME`, que es lo que necesitan los tests que
    tocan `settings.json`. Al añadir un caso "no encontrado", respétalos.
 
-8. **El path en background no es testeable unitariamente.**
-   `RunGowerCommand(..., background=true)` lanza una goroutine que llama
-   `wailsRuntime.EventsEmit(a.ctx, ...)`, que hace panic con `ctx == nil`.
-   Si necesitas cubrirlo, requiere inyectar el contexto de Wails.
+8. **`App.emit` permite doblar los eventos de Wails.** La ruta background de
+   `RunGowerCommand` lanza una goroutine que emite `gower-command-finished`.
+   `NewApp()` deja un `emit` no-op y `startup` lo sustituye por
+   `wailsRuntime.EventsEmit`, así que los tests pueden capturarlo. Si añades un
+   evento nuevo, usa siempre `a.emit(...)`: llamar a `wailsRuntime` directo hace
+   panic con `ctx == nil`.
 
 9. **`extractJson` (`api.js`) escanea por balanceo, no por `lastIndexOf`.**
    El CLI antepone logs (`[DEBUG] ...`) a la salida, así que el primer `[` o

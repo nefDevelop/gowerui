@@ -50,9 +50,14 @@ $(FRONTEND_BUILD): $(FRONTEND_STAMP)
 
 ## APP BUILD ##
 
+# La versión es la de wails.json, inyectada con -ldflags en main.version. Es la
+# única fuente de verdad: package.json y wails.json deben coincidir.
+APP_VERSION := $(shell node -p "require('./wails.json').info.productVersion" 2>/dev/null || echo dev)
+LDFLAGS := -X main.version=$(APP_VERSION)
+
 build: frontend-build
-	@echo "Building Wails application..."
-	$(WAILS) build $(WAILS_TAGS)
+	@echo "Building Wails application (version $(APP_VERSION))..."
+	$(WAILS) build $(WAILS_TAGS) -ldflags "$(LDFLAGS)"
 
 dev: frontend-install-deps
 	$(WAILS) dev $(WAILS_TAGS)

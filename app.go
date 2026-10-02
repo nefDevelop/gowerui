@@ -15,11 +15,20 @@ import (
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+// emitFunc emite un evento de Wails hacia el frontend.
+type emitFunc func(eventName string, data ...interface{})
+
 // App struct
 type App struct {
 	ctx        context.Context
 	customPath string
 	settings   appSettings
+
+	// emit permite sustituir el sistema de eventos de Wails por un doble en los
+	// tests. La ruta background de RunGowerCommand emite desde una goroutine, y
+	// EventsEmit hace panic si el contexto es nil, así que sin esta inyección
+	// ese camino no era testeable.
+	emit emitFunc
 }
 
 // appSettings es la configuración propia de la GUI. No forma parte del config de
@@ -33,13 +42,18 @@ type appSettings struct {
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	return &App{}
+	// Por defecto no se emite nada: así una App usada sin startup (tests, o
+	// cualquier llamada previa a OnStartup) no entra en panic.
+	return &App{emit: func(string, ...interface{}) {}}
 }
 
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.emit = func(eventName string, data ...interface{}) {
+		wailsRuntime.EventsEmit(ctx, eventName, data...)
+	}
 	// Recuperar la ruta guardada es lo primero: si el usuario la configuró en
 	// una sesión anterior, todas las llamadas a gower dependen de ella.
 	if err := a.loadSettings(); err != nil {
@@ -183,7 +197,7 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 			} else {
 				fmt.Printf("[BACKEND] Background command finished successfully\n")
 			}
-			wailsRuntime.EventsEmit(a.ctx, "gower-command-finished", args)
+			a.emit("gower-command-finished", args)
 		}()
 		return "Backgrounded", nil
 	}
@@ -287,6 +301,16 @@ func gowerNotFoundError(customPath string) error {
 		)
 	}
 	return fmt.Errorf("gower executable not found next to the application, in PATH or in any common location. Install it or select it in Settings")
+}
+
+// version es la versión de la aplicación, inyectada en tiempo de build con
+// -ldflags "-X main.version=...". El Makefile y el workflow la leen de
+// wails.json, que es la fuente de verdad. Sin inyección vale "dev".
+var version = "dev"
+
+// GetAppVersion returns the application version shown in the UI.
+func (a *App) GetAppVersion() string {
+	return version
 }
 
 // GowerStatus describes what the app knows about the gower binary, so the UI can

@@ -146,6 +146,15 @@ export async function checkFileExists(path) {
 }
 
 /**
+ * The application version, injected at build time from wails.json.
+ * @returns {Promise<string>}
+ */
+export async function getAppVersion() {
+  // @ts-ignore
+  return await window.go.main.App.GetAppVersion();
+}
+
+/**
  * Where the gower binary is, and whether it can be found at all.
  * @returns {Promise<{resolved_path: string, configured_path: string, available: boolean, error: string}>}
  */

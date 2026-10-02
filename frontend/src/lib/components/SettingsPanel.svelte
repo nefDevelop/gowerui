@@ -2,6 +2,7 @@
     import {
         gower,
         checkBattery,
+        getAppVersion,
         getGowerStatus,
         setCustomGowerPath,
         pickGowerBinary,
@@ -29,10 +30,12 @@
      */
     let gowerStatus = $state(null);
     let savingGowerPath = $state(false);
+    let appVersion = $state("");
 
     onMount(async () => {
         hasBattery = await checkBattery();
         gowerStatus = await getGowerStatus();
+        appVersion = await getAppVersion();
     });
 
     /** Refresca el estado del sidecar, p. ej. tras cambiar la ruta. */
@@ -450,7 +453,7 @@
             <p class="subtext">{$t("settings.providers.subtitle")}</p>
         </button>
 
-        <div class="version">Version 1.1.0</div>
+        <div class="version">{$t("app.version")} {appVersion}</div>
     {:else}
         <!-- PROVIDERS SUB-VIEW -->
         <div class="section">

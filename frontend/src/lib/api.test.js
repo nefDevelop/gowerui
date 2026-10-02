@@ -8,6 +8,7 @@ import {
     getAppContext,
     checkBattery,
     checkFileExists,
+    getAppVersion,
     getGowerStatus,
     setCustomGowerPath,
     pickGowerBinary,
@@ -27,6 +28,7 @@ function mockBackend(overrides = {}) {
         SetCustomGowerPath: vi.fn().mockResolvedValue(undefined),
         PickFile: vi.fn().mockResolvedValue(''),
         PickDirectory: vi.fn().mockResolvedValue(''),
+        GetAppVersion: vi.fn().mockResolvedValue('0.2.4'),
         ...overrides,
     };
     // @ts-ignore
@@ -267,6 +269,20 @@ describe('api / thin backend delegates', () => {
         const app = mockBackend();
         await expect(checkFileExists('/tmp/a.png')).resolves.toBe(true);
         expect(app.CheckFileExists).toHaveBeenCalledWith('/tmp/a.png');
+    });
+});
+
+describe('api / app version', () => {
+    it('should delegate getAppVersion', async () => {
+        const app = mockBackend();
+        await expect(getAppVersion()).resolves.toBe('0.2.4');
+        expect(app.GetAppVersion).toHaveBeenCalled();
+    });
+
+    // Sin -ldflags el backend responde "dev"; la UI debe mostrarlo igual.
+    it('should surface the dev fallback', async () => {
+        mockBackend({ GetAppVersion: vi.fn().mockResolvedValue('dev') });
+        await expect(getAppVersion()).resolves.toBe('dev');
     });
 });
 

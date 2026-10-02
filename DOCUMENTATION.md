@@ -218,10 +218,16 @@ make clean          # borra build/ y frontend/build/
 
 La versión vive en **dos** sitios que deben coincidir:
 
-- `wails.json` → `info.productVersion`
+- `wails.json` → `info.productVersion` (**fuente de verdad**)
 - `frontend/package.json` → `version`
 
-CI lee la de `wails.json` y la usa para nombrar el release.
+Del `wails.json` sale todo lo demás: el `Makefile` la lee y la inyecta en el
+binario con `-ldflags "-X main.version=..."`, y el workflow de release hace lo
+mismo y además la usa para nombrar el tag del release.
+
+La UI la lee con `getAppVersion()`. Sin inyección vale `"dev"`, que es lo que
+ve un `go build` a pelo; nunca debería enseñarse `"dev"` en una release, así que
+si aparece es que el binario se compiló fuera del `Makefile`.
 
 ## 4. Sidecar
 

@@ -10,6 +10,8 @@ export function CloseApp():Promise<void>;
 
 export function GetAppContext():Promise<main.AppContext>;
 
+export function GetAppVersion():Promise<string>;
+
 export function GetGowerStatus():Promise<main.GowerStatus>;
 
 export function OpenPath(arg1:string):Promise<void>;

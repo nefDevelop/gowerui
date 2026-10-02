@@ -143,7 +143,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wails build -tags ${{ env.WAILS_TAGS }} -platform ${{ matrix.wails_platform }} -o ${{ matrix.binary_name }}
+          # La versión viaja al binario por ldflags para que la UI pueda
+          # mostrarla sin una segunda fuente de verdad.
+          VERSION=$(node -p "require('./wails.json').info.productVersion")
+          wails build -tags ${{ env.WAILS_TAGS }} -platform ${{ matrix.wails_platform }} \
+            -o ${{ matrix.binary_name }} \
+            -ldflags "-X main.version=$VERSION"
 
       - name: package (linux)
         if: matrix.platform == 'ubuntu-22.04'

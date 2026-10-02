@@ -18,6 +18,10 @@ export function GetAppContext() {
   return window['go']['main']['App']['GetAppContext']();
 }
 
+export function GetAppVersion() {
+  return window['go']['main']['App']['GetAppVersion']();
+}
+
 export function GetGowerStatus() {
   return window['go']['main']['App']['GetGowerStatus']();
 }

@@ -1,5 +1,6 @@
 export const dictionary = {
     es: {
+        "app.version": "Versión",
         "app.title": "Gower GUI",
         "settings.title": "Configuración",
         "settings.daemon": "Daemon",
@@ -81,6 +82,7 @@ export const dictionary = {
         "language": "Idioma"
     },
     en: {
+        "app.version": "Version",
         "app.title": "Gower GUI",
         "settings.title": "Settings",
         "settings.daemon": "Daemon",

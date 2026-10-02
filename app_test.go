@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // fakeGowerAt crea un script ejecutable falso en la ruta indicada, sin tocar
@@ -91,6 +93,30 @@ func TestNewAppStartsWithoutCustomPath(t *testing.T) {
 	if app.customPath != "" {
 		t.Errorf("customPath = %q, se esperaba vacío", app.customPath)
 	}
+}
+
+// Sin -ldflags la versión vale "dev"; el Makefile y el workflow la inyectan
+// leyendo wails.json. Este test documenta ese contrato.
+func TestVersionFallsBackToDev(t *testing.T) {
+	if version != "dev" {
+		t.Errorf("version = %q, se esperaba \"dev\" cuando no hay inyección por ldflags", version)
+	}
+}
+
+func TestGetAppVersion(t *testing.T) {
+	if got := NewApp().GetAppVersion(); got != version {
+		t.Errorf("GetAppVersion() = %q, se esperaba %q", got, version)
+	}
+}
+
+// Una App recién creada debe poder emitir sin contexto de Wails: si no, el path
+// background revienta antes de que arranque OnStartup.
+func TestNewAppEmitIsSafeByDefault(t *testing.T) {
+	app := NewApp()
+	if app.emit == nil {
+		t.Fatal("NewApp() debe dejar un emit no-op, no nil")
+	}
+	app.emit("cualquier-evento", []string{"a"})
 }
 
 func TestSetCustomGowerPath(t *testing.T) {
@@ -603,6 +629,145 @@ func TestRunGowerCommandRejectsEmptyArgs(t *testing.T) {
 	}
 	if out != "" {
 		t.Errorf("salida = %q, se esperaba cadena vacía", out)
+	}
+}
+
+// emittedEvent captura lo que se emite por el sistema de eventos de Wails.
+type emittedEvent struct {
+	name string
+	data []interface{}
+}
+
+// recorder de eventos para poder testear la ruta background, que lanza una
+// goroutine y emite al terminar.
+type eventRecorder struct {
+	mu     sync.Mutex
+	events []emittedEvent
+}
+
+func (r *eventRecorder) emit(name string, data ...interface{}) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.events = append(r.events, emittedEvent{name: name, data: data})
+}
+
+// wait bloquea hasta que se ha emitido un evento o se agota el plazo. La
+// goroutine de RunGowerCommand es asíncrona, así que el test no puede assume
+// que el evento ya está emitido cuando retorna la llamada.
+func (r *eventRecorder) wait(t *testing.T, timeout time.Duration) emittedEvent {
+	t.Helper()
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		r.mu.Lock()
+		n := len(r.events)
+		r.mu.Unlock()
+
+		if n > 0 {
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			return r.events[0]
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+
+	t.Fatalf("no se emitió ningún evento en %s", timeout)
+	return emittedEvent{}
+}
+
+func TestRunGowerCommandBackgroundEmitsFinishedEvent(t *testing.T) {
+	fakeGower(t, "exit 0")
+
+	recorder := &eventRecorder{}
+	app := NewApp()
+	app.emit = recorder.emit
+
+	out, err := app.RunGowerCommand([]string{"set", "abc123"}, true)
+	if err != nil {
+		t.Fatalf("RunGowerCommand() error inesperado: %v", err)
+	}
+	if out != "Backgrounded" {
+		t.Errorf("salida = %q, se esperaba %q", out, "Backgrounded")
+	}
+
+	evt := recorder.wait(t, 5*time.Second)
+	if evt.name != "gower-command-finished" {
+		t.Errorf("evento = %q, se esperaba %q", evt.name, "gower-command-finished")
+	}
+
+	// El frontend inspecciona los args para decidir qué refrescar.
+	if len(evt.data) != 1 {
+		t.Fatalf("data = %v, se esperaba un único argumento", evt.data)
+	}
+	args, ok := evt.data[0].([]string)
+	if !ok {
+		t.Fatalf("data[0] = %T, se esperaba []string", evt.data[0])
+	}
+	if len(args) != 2 || args[0] != "set" || args[1] != "abc123" {
+		t.Errorf("args = %v, se esperaba [set abc123]", args)
+	}
+}
+
+// Aunque el comando en background falle, el evento debe emitirse: es lo que
+// refresca la UI y la deja coherent con el error.
+func TestRunGowerCommandBackgroundEmitsEvenOnFailure(t *testing.T) {
+	fakeGower(t, `echo "boom" >&2; exit 1`)
+
+	recorder := &eventRecorder{}
+	app := NewApp()
+	app.emit = recorder.emit
+
+	if _, err := app.RunGowerCommand([]string{"set", "x"}, true); err != nil {
+		t.Fatalf("RunGowerCommand() error inesperado: %v", err)
+	}
+
+	if evt := recorder.wait(t, 5*time.Second); evt.name != "gower-command-finished" {
+		t.Errorf("evento = %q, se esperaba %q pese al fallo", evt.name, "gower-command-finished")
+	}
+}
+
+func TestRunGowerCommandSynchronousDoesNotEmit(t *testing.T) {
+	fakeGower(t, "exit 0")
+
+	recorder := &eventRecorder{}
+	app := NewApp()
+	app.emit = recorder.emit
+
+	if _, err := app.RunGowerCommand([]string{"status"}, false); err != nil {
+		t.Fatalf("RunGowerCommand() error inesperado: %v", err)
+	}
+
+	// El frontend solo escucha este evento para el path background.
+	recorder.mu.Lock()
+	n := len(recorder.events)
+	recorder.mu.Unlock()
+
+	if n != 0 {
+		t.Errorf("se emitieron %d eventos en una llamada síncrona, se esperaba 0", n)
+	}
+}
+
+// Una App usada sin startup (o con el contexto de Wails aún no disponible) no
+// debe entrar en panic al emitir.
+func TestRunGowerCommandBackgroundWithoutWailsContextDoesNotPanic(t *testing.T) {
+	fakeGower(t, "exit 0")
+
+	// NewApp deja un emit no-op por defecto, sin tocar el contexto de Wails.
+	app := NewApp()
+	app.ctx = nil
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, err := app.RunGowerCommand([]string{"set", "x"}, true); err != nil {
+			t.Errorf("RunGowerCommand() error inesperado: %v", err)
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("RunGowerCommand() en background no retornó")
 	}
 }
 
