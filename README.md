@@ -9,11 +9,18 @@
 
 **gowerUI** es una interfaz gráfica moderna, rápida y multiplataforma para el gestor de fondos de pantalla [gower](https://github.com/nefDevelop/gower). Construida con **Wails v2** y **SvelteKit**, ofrece una experiencia nativa con un diseño refinado.
 
-La aplicación integra el binario `gower` como un **sidecar**, lo que significa que no necesitas instalar nada por separado: todo lo necesario para gestionar tus fondos de pantalla viene incluido en el ejecutable.
+La aplicación usa el binario `gower` como un **sidecar**: no reimplementa la lógica de gestión de fondos, delega en el CLI y traduce su salida JSON a la interfaz.
+
+En las releases oficiales `gower` viaja como fichero hermano del ejecutable, así que no necesitas instalarlo aparte. Si ejecutas desde el código, la app lo busca en este orden:
+
+1. La ruta que hayas fijado en **Ajustes**.
+2. Junto al propio ejecutable (`gower` o `gower.exe`, o en `bin/`).
+3. El `$PATH` y las rutas de instalación habituales (`~/go/bin`, `~/.local/bin`, `/usr/local/bin`, `/usr/bin`).
 
 ## ✨ Características Principales
 
-- **🚀 Sidecar Integrado**: Utiliza la última versión de `gower` automáticamente sin dependencias externas.
+- **🚀 Sidecar Integrado**: Empaqueta la última versión de `gower` en las releases, sin dependencias externas.
+- **🔧 Sidecar Configurable**: Si ejecutas desde el código, `gower` se busca en el `$PATH` y en las rutas habituales, o puedes fijar una ruta en Ajustes.
 - **🎨 Temas Inteligentes**: Soporte para modo claro, oscuro y sincronización con el sistema.
 - **🌍 Multi-idioma (i18n)**: Interfaz disponible en varios idiomas con detección automática.
 - **🖼️ Gestión de Wallpapers**: Explora, filtra, ordena y aplica fondos de pantalla con un solo clic.
@@ -30,9 +37,9 @@ La aplicación integra el binario `gower` como un **sidecar**, lo que significa 
 ## 💻 Desarrollo Local
 
 ### Requisitos
-- [Go](https://go.dev/doc/install) (1.22+)
+- [Go](https://go.dev/doc/install) (la versión exacta está fijada en `go.mod`)
 - [Node.js](https://nodejs.org/) (v20+)
-- [Wails CLI](https://wails.io/docs/gettingstarted/installation)
+- [Wails CLI v2](https://wails.io/docs/gettingstarted/installation)
 - Bibliotecas de sistema (en Linux): `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`.
 
 ### Pasos
@@ -41,17 +48,40 @@ La aplicación integra el binario `gower` como un **sidecar**, lo que significa 
    git clone https://github.com/nefDevelop/gowerGUI.git
    cd gowerGUI
    ```
-2. **Ejecutar en modo dev**:
+2. **Instalar dependencias del frontend**:
    ```bash
-   wails dev
+   make install-deps
    ```
+3. **Ejecutar en modo dev**:
+   ```bash
+   make dev
+   ```
+
+## 🧪 Desarrollo y tests
+
+Todo se orquesta con `make`:
+
+| Comando | Qué hace |
+|---|---|
+| `make test` | Suite completa: `test-unit` + `test-integration` |
+| `make test-unit` | Tests unitarios de Go y del frontend (Vitest) |
+| `make test-integration` | `go vet` + `go build` (verifica los assets embebidos) |
+| `make lint` | `gofmt` + `go vet` |
+| `make typecheck` | `svelte-check` |
+| `make check` | `lint` + `typecheck` + `test` |
+
+La documentación técnica (arquitectura, bindings, protocolo de assets) está en
+[`DOCUMENTATION.md`](DOCUMENTATION.md).
 
 ## 📦 Compilación
 
 Para compilar la aplicación para tu plataforma actual:
 ```bash
-wails build
+make build
 ```
+
+En Linux es obligatorio el tag `webkit2_41` (ya incluido en el target), que
+selecciona WebKitGTK 4.1.
 
 ## 🤝 Contribuir
 
