@@ -72,7 +72,17 @@ cambio de UI, un fix puntual o configuración.
 2. **`-tags webkit2_41` es obligatorio** en Linux (WebKitGTK 4.1). Está en
    `wails.json` (`flags`) y en `WAILS_TAGS` del `Makefile`.
 
-3. **El sidecar NO va embebido.** Los únicos `//go:embed` son `frontend/build` y
+3. **NUNCA ejecutes `gower` por shell.** `RunGowerCommand` usa siempre
+   `exec.Command(gowerPath, args...)`. Antes concatenaba los argumentos en un
+   `sh -c` para los subcomandos `set` y `daemon`, y eso convertía cualquier
+   metacaracter en código ejecutable: los argumentos incluyen ids que vienen
+   de proveedores remotos (Reddit) y rutas del disco, controladas por terceros.
+   El shell no aportaba nada porque `cmd.Env` ya hereda el entorno del proceso.
+   La regresión está cubierta por
+   `TestRunGowerCommandDoesNotInterpretShellMetacharacters`; si la rompes, ese
+   test crea ficheros marcadores y falla.
+
+4. **El sidecar NO va embebido.** Los únicos `//go:embed` son `frontend/build` y
    el favicon. `gower` viaja como **fichero hermano** del ejecutable en las
    releases portables. `lookupGowerPath` (app.go) busca, en orden: ruta de
    Ajustes → junto al ejecutable (`gower` o `bin/gower`) → `$PATH` → rutas de
@@ -80,7 +90,7 @@ cambio de UI, un fix puntual o configuración.
    `lookupGowerPath` **y** el paso de empaquetado del workflow, que deben
    seguir coincidiendo.
 
-4. **Los tests aíslan el host.** `fakeGower` / `fakeGowerAt` crean scripts
+5. **Los tests aíslan el host.** `fakeGower` / `fakeGowerAt` crean scripts
    falsos; `isolateHostWithoutGower` vacía `PATH` y `HOME` y **omite** el test
    si detecta un `gower` real en el host, para no dar falsos positivos. Al
    añadir un caso "no encontrado", respétalo.

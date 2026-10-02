@@ -76,17 +76,16 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 		return "", err
 	}
 
-	// For certain commands on Linux, running via shell can help with environment/path resolution
-	var cmd *exec.Cmd
-	if runtime.GOOS != "windows" && (args[0] == "set" || args[0] == "daemon") {
-		fullCmd := fmt.Sprintf("%s %s", gowerPath, strings.Join(args, " "))
-		fmt.Printf("[BACKEND] Executing via shell: %s\n", fullCmd)
-		cmd = exec.Command("sh", "-c", fullCmd)
-	} else {
-		fmt.Printf("[BACKEND] Executing direct: %s %s\n", gowerPath, strings.Join(args, " "))
-		cmd = exec.Command(gowerPath, args...)
-	}
-
+	// Ejecución directa, siempre. Concatenar los argumentos en un `sh -c`
+	// convertía cualquier metacaracter en código ejecutable, y los argumentos
+	// no son de fiar: `set` recibe un id de proveedor remoto o una ruta del
+	// disco, ambas controladas por terceros.
+	//
+	// El shell no aportaba resolución de entorno: cmd.Env ya hereda el del
+	// proceso, y gowerPath es absoluto salvo cuando el usuario configura uno
+	// relativo, en cuyo caso exec.Command lo resuelve igual vía PATH.
+	fmt.Printf("[BACKEND] Executing: %s %s\n", gowerPath, strings.Join(args, " "))
+	cmd := exec.Command(gowerPath, args...)
 	cmd.Env = os.Environ() // Ensure process environment is passed
 
 	if background {

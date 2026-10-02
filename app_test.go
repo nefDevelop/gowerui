@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -291,6 +292,65 @@ func TestRunGowerCommandPropagatesFailure(t *testing.T) {
 	// CombinedOutput debe conservar la salida para que la UI pueda mostrarla.
 	if !strings.Contains(out, "boom") {
 		t.Errorf("la salida no contiene stderr: %q", out)
+	}
+}
+
+// Los argumentos de `set` vienen de proveedores remotos (ids del feed) o del
+// sistema de ficheros (rutas locales), así que no son de fiar. Este test falla
+// si alguien reintroduce la ejecución vía `sh -c`: en ese caso el payload se
+// interpreta y se crea el fichero marcador.
+func TestRunGowerCommandDoesNotInterpretShellMetacharacters(t *testing.T) {
+	payloads := []struct {
+		name string
+		arg  string
+	}{
+		{"command chaining", "wallpaper; touch %s"},
+		{"command substitution", "wallpaper $(touch %s)"},
+		{"backticks", "wallpaper `touch %s`"},
+		{"background and redirect", "wallpaper & touch %s > /dev/null"},
+		{"pipe", "wallpaper | touch %s"},
+	}
+
+	for _, tt := range payloads {
+		t.Run(tt.name, func(t *testing.T) {
+			marker := filepath.Join(t.TempDir(), "pwned")
+			fakeGower(t, `echo "args:$*"`)
+
+			app := NewApp()
+
+			malicious := fmt.Sprintf(tt.arg, marker)
+			out, err := app.RunGowerCommand([]string{"set", malicious}, false)
+			if err != nil {
+				t.Fatalf("RunGowerCommand() error inesperado: %v", err)
+			}
+
+			if _, statErr := os.Stat(marker); statErr == nil {
+				t.Fatalf("el payload %q se ejecutó: se creó %s", malicious, marker)
+			}
+
+			// El argumento debe llegar literal, sin trocear ni expandir.
+			if !strings.Contains(out, malicious) {
+				t.Errorf("el argumento no llegó literal.\n salida:    %q\n esperado:  %q", out, malicious)
+			}
+		})
+	}
+}
+
+// La rama de shell se aplicaba a `set` y `daemon`; el resto ya iba directo.
+// Este caso fija que `daemon` tampoco se ejecuta vía shell.
+func TestRunGowerCommandDoesNotUseShellForDaemonCommands(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "pwned")
+	fakeGower(t, `echo "args:$*"`)
+
+	app := NewApp()
+
+	malicious := "start; touch " + marker
+	if _, err := app.RunGowerCommand([]string{"daemon", malicious}, false); err != nil {
+		t.Fatalf("RunGowerCommand() error inesperado: %v", err)
+	}
+
+	if _, err := os.Stat(marker); err == nil {
+		t.Errorf("el payload de daemon se ejecutó: se creó %s", marker)
 	}
 }
 
