@@ -1,34 +1,92 @@
 import { notifications } from "./stores/notifications";
 
 /**
- * Extracts a JSON string from a text that might contain other content.
+ * Escanea desde `start` hasta el carácter de cierre que balancea el de apertura,
+ * respetando cadenas y escapes, e intenta parsear el trozo resultante.
+ *
  * @param {string} text
- * @returns {any}
+ * @param {number} start índice del carácter de apertura
+ * @param {'{' | '['} open
+ * @returns {any | null} el valor parseado, o null si no cierra bien o no es JSON válido
+ */
+function scanBalancedJson(text, start, open) {
+  const closer = open === "{" ? "}" : "]";
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+
+    // Contamos los dos tipos de corchete: el candidato puede empezar por uno y
+    // anidar el otro (p. ej. un objeto con un array dentro).
+    if (ch === "{" || ch === "[") {
+      depth++;
+      continue;
+    }
+
+    if (ch === "}" || ch === "]") {
+      depth--;
+      if (depth > 0) continue;
+
+      // Si el primer cierre no corresponde al tipo de apertura, el candidato es
+      // basura (por ejemplo la "[DEBUG]" de un log): lo descartamos.
+      if (ch !== closer) return null;
+
+      try {
+        return JSON.parse(text.substring(start, i + 1));
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  return null; // JSON truncado
+}
+
+/**
+ * Extrae un JSON de un texto que puede contener otros contenidos (logs del CLI,
+ * mensajes de error...). Devuelve null si no hay ningún JSON válido.
+ *
+ * No basta con buscar el primer '{' o '[': el CLI suele anteponer logs como
+ * "[DEBUG] ...", y ese corchete no abre un array. Por eso se prueban todos los
+ * candidatos en orden de aparición y se devuelve el primero que parsea.
+ *
+ * @param {string} text
+ * @returns {any | null}
  */
 function extractJson(text) {
   if (typeof text !== "string") return text;
-  const startIdx = text.indexOf("[");
-  const startObjIdx = text.indexOf("{");
 
-  let actualStart = -1;
-  let actualEnd = -1;
+  let braceIdx = text.indexOf("{");
+  let bracketIdx = text.indexOf("[");
 
-  if (startIdx !== -1 && (startObjIdx === -1 || startIdx < startObjIdx)) {
-    actualStart = startIdx;
-    actualEnd = text.lastIndexOf("]");
-  } else if (startObjIdx !== -1) {
-    actualStart = startObjIdx;
-    actualEnd = text.lastIndexOf("}");
+  while (braceIdx !== -1 || bracketIdx !== -1) {
+    const useBrace = braceIdx !== -1 && (bracketIdx === -1 || braceIdx < bracketIdx);
+    const open = /** @type {'{' | '['} */ (useBrace ? "{" : "[");
+    const idx = useBrace ? braceIdx : bracketIdx;
+
+    // Avanzamos el puntero del candidato elegido antes de escanear para no
+    // quedarnos bloqueados en el mismo índice si este falla.
+    if (useBrace) braceIdx = text.indexOf("{", idx + 1);
+    else bracketIdx = text.indexOf("[", idx + 1);
+
+    const parsed = scanBalancedJson(text, idx, open);
+    if (parsed !== null) return parsed;
   }
 
-  if (actualStart !== -1 && actualEnd !== -1 && actualEnd > actualStart) {
-    const jsonStr = text.substring(actualStart, actualEnd + 1);
-    try {
-      return JSON.parse(jsonStr);
-    } catch (e) {
-      console.error("[API] Failed to parse extracted JSON:", e);
-    }
-  }
   return null;
 }
 
