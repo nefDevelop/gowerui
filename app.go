@@ -15,8 +15,8 @@ import (
 
 // App struct
 type App struct {
-	ctx         context.Context
-	customPath  string
+	ctx        context.Context
+	customPath string
 }
 
 // NewApp creates a new App application struct
@@ -65,6 +65,11 @@ func (a *App) GetAppContext() (AppContext, error) {
 
 // RunGowerCommand executes the gower CLI
 func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
+	// Sin subcomando no hay nada que ejecutar y args[0] entraria en panic.
+	if len(args) == 0 {
+		return "", fmt.Errorf("no gower command provided: args must contain at least the subcommand")
+	}
+
 	gowerPath, err := a.resolveGowerPath()
 	if err != nil {
 		fmt.Printf("[BACKEND] Error resolving gower path: %v\n", err)
@@ -81,7 +86,7 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 		fmt.Printf("[BACKEND] Executing direct: %s %s\n", gowerPath, strings.Join(args, " "))
 		cmd = exec.Command(gowerPath, args...)
 	}
-	
+
 	cmd.Env = os.Environ() // Ensure process environment is passed
 
 	if background {
@@ -89,7 +94,7 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		cmd.Stdout = os.Stdout
-		
+
 		err := cmd.Start()
 		if err != nil {
 			fmt.Printf("[BACKEND] Error starting background command: %v\n", err)
@@ -117,32 +122,95 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 }
 
 func (a *App) resolveGowerPath() (string, error) {
-	if a.customPath != "" {
-		return a.customPath, nil
+	return lookupGowerPath(a.customPath, currentExecutablePath())
+}
+
+// lookupGowerPath busca el binario del sidecar en orden de precedencia:
+//  1. Ruta configurada en Ajustes.
+//  2. Sidecar portable: `gower` junto al ejecutable de la app (o en bin/).
+//  3. PATH del sistema.
+//  4. Rutas de instalación habituales.
+//
+// Se separa de resolveGowerPath para poder testear cada rama sin depender del
+// ejecutable en ejecución ni de una máquina con gower instalado.
+func lookupGowerPath(customPath, exePath string) (string, error) {
+	if customPath != "" && isRegularFile(customPath) {
+		return customPath, nil
 	}
 
-	// Try PATH
-	path, err := exec.LookPath("gower")
-	if err == nil {
+	// Sidecar portable. Va antes del PATH a propósito: en un bundle portable
+	// la versión que acompaña al binario es la aprobada para esa release,
+	// mientras que el PATH puede apuntar a otra instalación.
+	if exePath != "" {
+		dir := filepath.Dir(exePath)
+		for _, p := range []string{
+			filepath.Join(dir, gowerBinaryName()),
+			filepath.Join(dir, "bin", gowerBinaryName()),
+		} {
+			if isRegularFile(p) {
+				return p, nil
+			}
+		}
+	}
+
+	if path, err := exec.LookPath(gowerBinaryName()); err == nil {
 		return path, nil
 	}
 
-	// Try common locations
 	home, _ := os.UserHomeDir()
-	commonPaths := []string{
-		filepath.Join(home, "go", "bin", "gower"),
-		filepath.Join(home, ".local", "bin", "gower"),
-		"/usr/local/bin/gower",
-		"/usr/bin/gower",
-	}
-
-	for _, p := range commonPaths {
-		if _, err := os.Stat(p); err == nil {
+	for _, dir := range []string{
+		filepath.Join(home, "go", "bin"),
+		filepath.Join(home, ".local", "bin"),
+		"/usr/local/bin",
+		"/usr/bin",
+	} {
+		if p := filepath.Join(dir, gowerBinaryName()); isRegularFile(p) {
 			return p, nil
 		}
 	}
 
-	return "", fmt.Errorf("gower executable not found. Please set it in Settings")
+	return "", gowerNotFoundError(customPath)
+}
+
+// currentExecutablePath devuelve la ruta del ejecutable de la app resolviendo
+// symlinks, o cadena vacía si no se puede determinar.
+func currentExecutablePath() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		return resolved
+	}
+	return exe
+}
+
+// gowerBinaryName devuelve el nombre del sidecar según la plataforma.
+func gowerBinaryName() string {
+	if runtime.GOOS == "windows" {
+		return "gower.exe"
+	}
+	return "gower"
+}
+
+// isRegularFile indica si p existe y es un fichero. No se comprueba el bit de
+// ejecución: en Windows es irrelevante y en Linux daría falsos negativos en
+// montajes sin permisos.
+func isRegularFile(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && !info.IsDir()
+}
+
+// gowerNotFoundError construye un error accionable: en lugar del genérico
+// "not found", dice dónde se ha buscado y cómo resolverlo.
+func gowerNotFoundError(customPath string) error {
+	if customPath != "" {
+		return fmt.Errorf(
+			"the gower path configured in Settings (%s) does not exist, and gower was not found next to the application, in PATH or in any common location",
+			customPath,
+		)
+	}
+	return fmt.Errorf("gower executable not found next to the application, in PATH or in any common location. Install it or select it in Settings")
 }
 
 // SetCustomGowerPath sets a custom path for the gower binary
