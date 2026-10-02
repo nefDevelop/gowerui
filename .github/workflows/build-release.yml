@@ -1,4 +1,4 @@
-name: Build and Release
+name: Test and Release
 
 on:
   push:
@@ -11,8 +11,58 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  WAILS_VERSION: v2.12.0
+  WAILS_TAGS: webkit2_41
+
 jobs:
-  build:
+  test:
+    name: Tests
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential pkg-config \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev
+
+      - name: install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: lint
+        run: make lint
+
+      - name: typecheck
+        run: make typecheck
+
+      - name: unit tests
+        run: make test-unit
+
+      - name: integration tests
+        run: make test-integration
+
+  build-release:
+    name: Build (${{ matrix.platform }})
+    needs: test
+    if: github.event_name != 'pull_request'
     permissions:
       contents: write
     strategy:
@@ -20,142 +70,133 @@ jobs:
       matrix:
         include:
           - platform: "ubuntu-22.04"
-            target: "x86_64-unknown-linux-gnu"
-            binary_name: "gower"
-            sidecar_name: "gower-x86_64-unknown-linux-gnu"
+            wails_platform: "linux/amd64"
+            binary_name: "gowerui"
+            sidecar_asset: "gower"
           - platform: "windows-latest"
-            target: "x86_64-pc-windows-msvc"
-            binary_name: "gower.exe"
-            sidecar_name: "gower-x86_64-pc-windows-msvc.exe"
+            wails_platform: "windows/amd64"
+            binary_name: "gowerui.exe"
+            sidecar_asset: "gower.exe"
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: setup node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-go@v5
         with:
-          targets: ${{ matrix.target }}
+          go-version-file: go.mod
+          cache: true
 
-      - name: install dependencies (ubuntu only)
+      - name: install system dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y \
+            build-essential pkg-config \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev
+
+      - name: install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
 
       - name: install frontend dependencies
-        run: npm install
+        working-directory: frontend
+        run: npm ci
 
-      - name: get tauri version
-        id: tauri_version
+      - name: read app version
+        id: app
         shell: bash
         run: |
-          VERSION=$(grep '"version":' src-tauri/tauri.conf.json | head -n 1 | cut -d '"' -f 4)
+          VERSION=$(node -p "require('./wails.json').info.productVersion")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "gowerui $VERSION" >> $GITHUB_STEP_SUMMARY
 
-      - name: fetch sidecar binary from nefDevelop/gower
+      - name: fetch gower sidecar from nefDevelop/gower
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
-          mkdir -p src-tauri/binaries
+          set -euo pipefail
           REPO="nefDevelop/gower"
+          mkdir -p sidecar
           echo "Fetching latest release from $REPO..."
-          LATEST_RELEASE_JSON=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/$REPO/releases/latest)
-          GOWER_VERSION=$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | head -n 1 | cut -d '"' -f 4)
+          RELEASE_JSON=$(curl -sfSL -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/latest")
+          GOWER_VERSION=$(echo "$RELEASE_JSON" | grep '"tag_name":' | head -n 1 | cut -d '"' -f 4)
+          DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep '"browser_download_url"' | grep "/${{ matrix.sidecar_asset }}\"" | head -n 1 | cut -d '"' -f 4)
 
-          if [[ "${{ matrix.platform }}" == "ubuntu-22.04" ]]; then
-            DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower\"" | head -n 1 | cut -d '"' -f 4)
-          else
-            DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep "browser_download_url" | grep "/gower.exe\"" | head -n 1 | cut -d '"' -f 4)
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "::error::No se encontró el asset ${{ matrix.sidecar_asset }} en $REPO"
+            exit 1
           fi
 
-          curl -L -H "Authorization: token $GH_TOKEN" "$DOWNLOAD_URL" -o src-tauri/binaries/${{ matrix.sidecar_name }}
-          chmod +x src-tauri/binaries/${{ matrix.sidecar_name }} || true
-          echo "{\"version\": \"$GOWER_VERSION\", \"repo\": \"$REPO\", \"binary\": \"${{ matrix.binary_name }}\"}" > src/lib/sidecar-info.json
+          curl -sfSL -H "Authorization: token $GH_TOKEN" "$DOWNLOAD_URL" -o "sidecar/${{ matrix.sidecar_asset }}"
+          chmod +x "sidecar/${{ matrix.sidecar_asset }}" || true
+          echo "gower $GOWER_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "{\"version\": \"$GOWER_VERSION\", \"repo\": \"$REPO\", \"binary\": \"${{ matrix.sidecar_asset }}\"}" > frontend/src/lib/sidecar-info.json
 
-      - name: build tauri app
+      - name: build wails app
         shell: bash
         run: |
-          # Manual build to ensure binaries are created and visible
-          npm run tauri build -- --target ${{ matrix.target }}
+          set -euo pipefail
+          wails build -tags ${{ env.WAILS_TAGS }} -platform ${{ matrix.wails_platform }} -o ${{ matrix.binary_name }}
 
-      - name: package portable (linux)
+      - name: package (linux)
         if: matrix.platform == 'ubuntu-22.04'
         shell: bash
         run: |
-          set -x
-          mkdir -p gowerui-linux-portable
-          # Robust binary discovery
-          BINARY_PATH=$(find src-tauri/target -name gowerui -type f | grep release | grep -v bundle | grep -v deps | head -n 1)
-          cp "$BINARY_PATH" gowerui-linux-portable/
-          cp src-tauri/binaries/gower-x86_64-unknown-linux-gnu gowerui-linux-portable/gower
-          cp src-tauri/icons/128x128.png gowerui-linux-portable/icon.png
+          set -euo pipefail
+          mkdir -p gowerui-linux-portable final-assets
+          cp "build/bin/${{ matrix.binary_name }}" gowerui-linux-portable/
+          cp "sidecar/${{ matrix.sidecar_asset }}" gowerui-linux-portable/gower
+          cp frontend/static/favicon.png gowerui-linux-portable/icon.png
 
-          cat <<EOF > gowerui-linux-portable/gowerui.desktop
+          cat <<'EOF' > gowerui-linux-portable/gowerui.desktop
           [Desktop Entry]
           Name=Gower UI
           Comment=GUI for Gower Wallpaper Engine
-          Exec=sh -c "cd \$(dirname %k) && ./gowerui"
-          Icon=\$(dirname %k)/icon.png
+          Exec=sh -c "cd $(dirname %k) && ./gowerui"
+          Icon=$(dirname %k)/icon.png
           Terminal=false
           Type=Application
           Categories=Utility;Graphics;
           EOF
 
-          cat <<EOF > gowerui-linux-portable/README.md
-          # Gower UI - Portable Linux
-          ## Ejecución: ./gowerui
-          EOF
+          printf '# Gower UI - Portable Linux\n\n## Ejecucion: ./gowerui\n' > gowerui-linux-portable/README.md
 
           chmod +x gowerui-linux-portable/gowerui gowerui-linux-portable/gower
           tar -czf gowerui-linux-portable.tar.gz gowerui-linux-portable/
-
-          mkdir -p final-assets
-          find src-tauri/target -name "*.deb" -exec cp {} final-assets/ \;
-          find src-tauri/target -name "*.rpm" -exec cp {} final-assets/ \;
-          find src-tauri/target -name "*.AppImage" -exec cp {} final-assets/ \;
           cp gowerui-linux-portable.tar.gz final-assets/
 
-      - name: package portable (windows)
+      - name: package (windows)
         if: matrix.platform == 'windows-latest'
         shell: bash
         run: |
-          set -x
-          mkdir -p gowerui-windows-portable
-          # Robust binary discovery for Windows
-          BINARY_PATH=$(find src-tauri/target -name gowerui.exe -type f | grep release | grep -v bundle | grep -v deps | head -n 1)
-          cp "$BINARY_PATH" gowerui-windows-portable/
-          # Mantener el nombre completo del sidecar para que Tauri lo encuentre
-          cp src-tauri/binaries/gower-x86_64-pc-windows-msvc.exe gowerui-windows-portable/gower-x86_64-pc-windows-msvc.exe
+          set -euo pipefail
+          mkdir -p gowerui-windows-portable final-assets
+          cp "build/bin/${{ matrix.binary_name }}" gowerui-windows-portable/
+          cp "sidecar/${{ matrix.sidecar_asset }}" gowerui-windows-portable/
 
-          # Crear un pequeño README explicativo
-          echo "Ejecuta gowerui.exe para iniciar la aplicación." > gowerui-windows-portable/README.txt
-          echo "No elimines gower-x86_64-pc-windows-msvc.exe, es el motor de la aplicación." >> gowerui-windows-portable/README.txt
+          {
+            echo "Ejecuta gowerui.exe para iniciar la aplicacion."
+            echo "No elimines ${{ matrix.sidecar_asset }}, es el motor de la aplicacion."
+          } > gowerui-windows-portable/README.txt
 
-          cd gowerui-windows-portable && 7z a ../gowerui-windows-portable.zip * && cd ..
-
-          mkdir -p final-assets
-          # ONLY copy from the bundle directory to avoid build scripts
-          find src-tauri/target -path "*/release/bundle/*" -name "*.exe" -exec cp {} final-assets/ \; || true
-          find src-tauri/target -path "*/release/bundle/*" -name "*.msi" -exec cp {} final-assets/ \; || true
+          cd gowerui-windows-portable && 7z a ../gowerui-windows-portable.zip ./* && cd ..
           cp gowerui-windows-portable.zip final-assets/
 
-      - name: upload all assets to release
+      - name: upload assets to release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
           files: final-assets/*
-          tag_name: v${{ steps.tauri_version.outputs.version }}
-          name: "gowerui v${{ steps.tauri_version.outputs.version }}"
-          body: "Automatic release. Includes Portable, DEB, RPM, AppImage and MSI/EXE versions."
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', steps.app.outputs.version) }}
+          name: "gowerui v${{ steps.app.outputs.version }}"
+          body: "Automatic release. Includes the gower sidecar as a portable bundle."
           draft: false
           prerelease: false
         env:
