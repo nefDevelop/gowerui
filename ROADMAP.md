@@ -35,8 +35,11 @@ Este documento describe los pasos necesarios y las características planificadas
 - [x] **Ruta background testeable**: `EventsEmit` con `ctx == nil` hacía panic e impedía cubrir el flujo de aplicar wallpaper. `App.emit` es inyectable y hay cinco tests nuevos.
 - [x] **Versión real en la UI**: `SettingsPanel` pintaba "Version 1.1.0" con `wails.json` en 0.2.4. Se inyecta por `-ldflags` desde `wails.json` y la UI la pide con `GetAppVersion()`.
 - [x] **Listener muerto**: `+layout.svelte` escuchaba `window-shown`, que Go nunca emite.
+- [x] **Sidecar sin pin**: el workflow descargaba `releases/latest` y sobrescribía `sidecar-info.json` con lo que devolviese la API, así que la release no era reproducible ni reversible y el `v0.1.0` commiteado mentía. Ahora el tag vive en `.gower-version`, se descarga por URL de release y el JSON se genera desde el pin (`make sidecar-info`). `make verify-sidecar` comprueba que el pin existe.
 
 ## 🌟 Fase 5: Pendiente
+- [x] **Verificación del contrato en gowerGUI**: `contract_test.go` descarga/usa el binario y el `gower-contract.json` del tag pineado, los ejecuta sobre un `HOME` aislado y valida las claves `--json`. Cableado en el job `test` del CI.
+- [x] **Bump del pin automatizado**: gower dispara `repository_dispatch` al publicar tag y `bump-sidecar.yml` abre un PR que solo actualiza `.gower-version`.
 - [ ] **Tests E2E**: Configurar `playwright.config.js` y escribir los primeros specs.
 - [ ] **Tests de componentes Svelte**: Cubrir `WallpaperGrid`, `SearchPanel`, `SettingsPanel`, `ToastContainer`.
 - [ ] **Internacionalizar los toasts y el tray**: ~15 mensajes en `+page.svelte` y el menú del tray (`main.go`) están en español fijo. La app se declara multi-idioma pero estas cadenas nunca se traducen.

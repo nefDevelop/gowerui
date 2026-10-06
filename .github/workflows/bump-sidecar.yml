@@ -1,0 +1,81 @@
+name: Bump gower sidecar pin
+
+# Se dispara cuando gower publica una release (repository_dispatch) o a mano.
+# Solo actualiza .gower-version y regenera sidecar-info.json: el pin sigue
+# siendo explícito y revisable vía PR, nunca un bump silencioso a "latest".
+on:
+  repository_dispatch:
+    types: [gower-release]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag de gower a fijar (ej. v0.2.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    name: Bump pin and open PR
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve tag
+        id: tag
+        env:
+          DISPATCH_TAG: ${{ github.event.client_payload.tag }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "${DISPATCH_TAG:-}" ]; then
+            TAG="$DISPATCH_TAG"
+          else
+            TAG="${INPUT_TAG:-}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "::error::no se recibió ningún tag"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Pin del sidecar -> $TAG" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update pin and regenerate sidecar-info.json
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$TAG" > .gower-version
+          bash scripts/render-sidecar-info.sh
+
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # Rama estable: si ya existe, se actualiza el PR abierto en lugar de
+          # crear uno nuevo. Es una rama de bot, el force es intencionado.
+          BRANCH="chore/bump-gower-sidecar"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add .gower-version frontend/src/lib/sidecar-info.json
+          if git diff --cached --quiet; then
+            echo "El pin ya está en $TAG; nada que hacer."
+            exit 0
+          fi
+          git commit -m "chore: bump gower sidecar to $TAG"
+          git push --force origin "$BRANCH"
+          # Si el PR ya existe, gh falla: se tolera y el push anterior ya lo
+          # habrá actualizado.
+          gh pr create \
+            --base main --head "$BRANCH" \
+            --title "chore: bump gower sidecar to $TAG" \
+            --body "Pin del sidecar a \`$TAG\`. Revisa el contrato y el CI antes de mergear." \
+            || echo "Ya existe un PR para $BRANCH"

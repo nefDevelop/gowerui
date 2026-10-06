@@ -18,6 +18,8 @@ gowerui-*-portable.tar.gz
 gowerui-*-portable.zip
 sidecar/
 final-assets/
+# Descargas temporales de la verificación de contrato (binario + contrato)
+contract/
 
 # Rust / Tauri (restos de la era anterior a Wails)
 src-tauri/target/

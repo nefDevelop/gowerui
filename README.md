@@ -11,7 +11,7 @@
 
 La aplicación usa el binario `gower` como un **sidecar**: no reimplementa la lógica de gestión de fondos, delega en el CLI y traduce su salida JSON a la interfaz.
 
-En las releases oficiales `gower` viaja como fichero hermano del ejecutable, así que no necesitas instalarlo aparte. Si ejecutas desde el código, la app lo busca en este orden:
+En las releases oficiales `gower` viaja como fichero hermano del ejecutable, así que no necesitas instalarlo aparte. La versión que se empaqueta está fijada en [`.gower-version`](.gower-version). Si ejecutas desde el código, la app lo busca en este orden:
 
 1. La ruta que hayas fijado en **Ajustes**.
 2. Junto al propio ejecutable (`gower` o `gower.exe`, o en `bin/`).
@@ -66,6 +66,7 @@ Todo se orquesta con `make`:
 | `make test` | Suite completa: `test-unit` + `test-integration` |
 | `make test-unit` | Tests unitarios de Go y del frontend (Vitest) |
 | `make test-integration` | `go vet` + `go build` (verifica los assets embebidos) |
+| `make test-contract` | Verifica el contrato contra el sidecar pineado (necesita `GOWER_BIN`) |
 | `make lint` | `gofmt` + `go vet` |
 | `make typecheck` | `svelte-check` |
 | `make check` | `lint` + `typecheck` + `test` |

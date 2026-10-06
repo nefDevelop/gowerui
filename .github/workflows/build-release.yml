@@ -59,6 +59,31 @@ jobs:
       - name: integration tests
         run: make test-integration
 
+      - name: read gower sidecar pin
+        id: sidecar
+        run: echo "tag=$(tr -d '[:space:]' < .gower-version)" >> "$GITHUB_OUTPUT"
+
+      - name: contract test (pinned gower)
+        # Descarga el binario y el contrato del tag pineado y verifica que las
+        # claves --json que consume el frontend siguen presentes. Sin esto, un
+        # cambio de esquema en gower degradaría la UI en silencio.
+        shell: bash
+        env:
+          GOWER_BIN: ${{ github.workspace }}/contract/gower
+          GOWER_CONTRACT: ${{ github.workspace }}/contract/gower-contract.json
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.sidecar.outputs.tag }}"
+          mkdir -p contract
+          curl -fSL --retry 3 --retry-all-errors \
+            -o contract/gower \
+            "https://github.com/nefDevelop/gower/releases/download/$TAG/gower"
+          chmod +x contract/gower
+          curl -fSL --retry 3 --retry-all-errors \
+            -o contract/gower-contract.json \
+            "https://raw.githubusercontent.com/nefDevelop/gower/$TAG/contract/gower-contract.json"
+          make test-contract
+
   build-release:
     name: Build (${{ matrix.platform }})
     needs: test
@@ -116,28 +141,54 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "gowerui $VERSION" >> $GITHUB_STEP_SUMMARY
 
-      - name: fetch gower sidecar from nefDevelop/gower
+      - name: read gower sidecar pin
+        id: sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG=$(tr -d '[:space:]' < .gower-version)
+          if [ -z "$TAG" ]; then
+            echo "::error::.gower-version está vacío o no existe"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "gower sidecar pinned to $TAG" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: fetch pinned gower sidecar
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           REPO="nefDevelop/gower"
+          TAG="${{ steps.sidecar.outputs.tag }}"
+          ASSET="${{ matrix.sidecar_asset }}"
+          # Tag fijado, no "latest": un release debe ser reproducible y
+          # reversible. Se descarga por URL de release en vez de por la API.
+          URL="https://github.com/$REPO/releases/download/$TAG/$ASSET"
           mkdir -p sidecar
-          echo "Fetching latest release from $REPO..."
-          RELEASE_JSON=$(curl -sfSL -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/latest")
-          GOWER_VERSION=$(echo "$RELEASE_JSON" | grep '"tag_name":' | head -n 1 | cut -d '"' -f 4)
-          DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep '"browser_download_url"' | grep "/${{ matrix.sidecar_asset }}\"" | head -n 1 | cut -d '"' -f 4)
-
-          if [ -z "$DOWNLOAD_URL" ]; then
-            echo "::error::No se encontró el asset ${{ matrix.sidecar_asset }} en $REPO"
+          echo "Fetching $ASSET from $REPO@$TAG..."
+          # -f hace fallar el curl si el tag o el asset no existen: mejor un
+          # error ruidoso aquí que empaquetar un bundle sin motor.
+          curl -fSL --retry 3 --retry-all-errors \
+            -H "Authorization: token $GH_TOKEN" "$URL" -o "sidecar/$ASSET"
+          # Integridad: la release publica checksums.txt (lo genera gower).
+          curl -fSL --retry 3 --retry-all-errors \
+            -H "Authorization: token $GH_TOKEN" \
+            "https://github.com/$REPO/releases/download/$TAG/checksums.txt" \
+            -o sidecar/checksums.txt
+          EXPECTED=$(awk -v a="/$ASSET" '$2 == a {print $1}' sidecar/checksums.txt)
+          if command -v sha256sum >/dev/null 2>&1; then HASHER="sha256sum"; else HASHER="shasum -a 256"; fi
+          ACTUAL=$($HASHER "sidecar/$ASSET" | awk '{print $1}')
+          if [ -z "$EXPECTED" ] || [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "::error::checksum no coincide para $ASSET (esperado '$EXPECTED', real '$ACTUAL')"
             exit 1
           fi
-
-          curl -sfSL -H "Authorization: token $GH_TOKEN" "$DOWNLOAD_URL" -o "sidecar/${{ matrix.sidecar_asset }}"
-          chmod +x "sidecar/${{ matrix.sidecar_asset }}" || true
-          echo "gower $GOWER_VERSION" >> $GITHUB_STEP_SUMMARY
-          echo "{\"version\": \"$GOWER_VERSION\", \"repo\": \"$REPO\", \"binary\": \"${{ matrix.sidecar_asset }}\"}" > frontend/src/lib/sidecar-info.json
+          echo "checksum OK para $ASSET"
+          chmod +x "sidecar/$ASSET" || true
+          # El JSON de la UI se deriva del pin, no de la respuesta de la API.
+          bash scripts/render-sidecar-info.sh "$ASSET"
+          cat frontend/src/lib/sidecar-info.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: build wails app
         shell: bash

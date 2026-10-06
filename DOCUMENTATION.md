@@ -245,13 +245,21 @@ El paso 1 es el que hace funcionar el bundle portable: el ejecutable busca
 `gower` en su propio directorio.
 
 El empaquetado de release sí lo incluye: el workflow `build-release` descarga
-el último release de `nefDevelop/gower` y lo coloca junto al binario
+el sidecar del tag fijado en `.gower-version` y lo coloca junto al binario
 (`gower` en Linux, `gower.exe` en Windows), que es exactamente lo que espera
 `lookupGowerPath()`.
 
-`frontend/src/lib/sidecar-info.json` guarda la versión del sidecar con la que se
-compiló la app. **CI lo sobrescribe** con la versión real descargada antes de
-compilar el frontend.
+`.gower-version` es la **única fuente de verdad** de la versión del sidecar. El
+workflow ya **no** consulta `releases/latest`: descarga por URL de release del
+tag fijado y falla si el tag o el asset no existen. Además verifica el
+`sha256` del binario contra el `checksums.txt` de la release antes de
+empaquetarlo. Así una release es reproducible, íntegra y se puede revertir el
+pin.
+
+`frontend/src/lib/sidecar-info.json` se **genera desde el pin** con
+`scripts/render-sidecar-info.sh` (`make sidecar-info`), tanto en local como en
+CI, para que no haya un valor commiteado que no corresponda a lo empaquetado.
+Para comprobar que el pin apunta a una release real: `make verify-sidecar`.
 
 ## 5. CI/CD
 
@@ -260,10 +268,17 @@ compilar el frontend.
 | Job | Cuándo | Qué hace |
 |---|---|---|
 | `test` | PR y push a `main` | `make lint`, `make typecheck`, `make test-unit`, `make test-integration` en `ubuntu-22.04` |
-| `build-release` | Tags `v*` y `workflow_dispatch` | Depende de `test`. Compila en Linux y Windows, descarga el sidecar, empaqueta portable y publica el release |
+| `build-release` | Tags `v*` y `workflow_dispatch` | Depende de `test`. Compila en Linux y Windows, descarga el sidecar del pin `.gower-version`, empaqueta portable y publica el release |
 
 El job `test` corre siempre antes de publicar un release: no se publica un binario
 cuyo test haya fallado.
+
+Además, `.github/workflows/bump-sidecar.yml` recibe un `repository_dispatch`
+(`gower-release`) que gower envía al publicar un tag, y abre un PR que solo
+bumpea `.gower-version`. Requiere el secreto `GOWER_DISPATCH_TOKEN` en gower
+(un PAT con permiso sobre este repo). Si el secreto no existe, gower omite el
+aviso y la release sigue igual; el bump se puede lanzar a mano con
+`workflow_dispatch`.
 
 ## 6. Testing
 
@@ -271,6 +286,7 @@ cuyo test haya fallado.
 make test              # test-unit + test-integration
 make test-unit         # go test ./...  +  vitest run
 make test-integration  # go vet ./...   +  go build
+make test-contract     # verifica el contrato contra el binario pineado (necesita GOWER_BIN)
 make lint              # gofmt -l + go vet
 make typecheck         # svelte-check
 make check             # lint + typecheck + test
@@ -279,6 +295,13 @@ make check             # lint + typecheck + test
 - **Backend**: `app_test.go`, `package main`, tabla de tests con la stdlib
   (sin testify). Los helpers `fakeGower` (script shell falso en `t.TempDir()`)
   e `isolateHostWithoutGower` aíslan el host del ejecutable real.
+- **Contrato** (`contract_test.go`): `TestGowerContractFile` comprueba que el
+  contrato del tag pineado (`GOWER_CONTRACT`) sigue declarando las claves que
+  consume la UI; `TestGowerContractCommands` ejecuta el binario pineado
+  (`GOWER_BIN`) sobre un `HOME` aislado y valida las salidas `--json`
+  *headless-safe*. Ambos se **omiten** si las variables no están definidas, así
+  que `make test` sigue corriendo sin el binario. El CI los cablea en el job
+  `test` descargando el pin.
 - **Frontend**: Vitest + `jsdom`. `frontend/src/test/setup.js` mockea
   `localStorage` y `matchMedia`. Cobertura actual: `api.js`, y los stores
   `theme`, `i18n` y `notifications`.

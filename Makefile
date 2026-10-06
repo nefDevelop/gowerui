@@ -14,9 +14,16 @@ FRONTEND_BUILD := frontend/build/index.html
 FRONTEND_STAMP := frontend/.build-stamp
 NODE_MODULES := frontend/node_modules
 
+# Pin del sidecar gower: el tag vive en .gower-version y es la única fuente de
+# verdad de la versión que se empaqueta.
+GOWER_VERSION_FILE := .gower-version
+GOWER_REPO := nefDevelop/gower
+GOWER_ASSET := gower
+
 .PHONY: all build dev clean install-deps \
         frontend-build frontend-install-deps \
-        test test-unit test-integration test-e2e \
+        sidecar-info verify-sidecar \
+        test test-unit test-integration test-contract test-e2e \
         lint typecheck check
 
 # Default target
@@ -69,6 +76,26 @@ clean:
 	rm -f $(FRONTEND_STAMP) gowerui
 	@echo "Build artifacts cleaned."
 
+## SIDECAR ##
+
+# Regenera frontend/src/lib/sidecar-info.json a partir de .gower-version.
+# Úsalo al bumpear el pin para que el fichero commiteado no se quede atrás.
+sidecar-info:
+	bash scripts/render-sidecar-info.sh
+
+# Comprueba que el pin apunta a una release real con el asset esperado.
+# Necesita red, por eso NO forma parte de `make check`.
+verify-sidecar:
+	@tag=$$(tr -d '[:space:]' < $(GOWER_VERSION_FILE)); \
+	if [ -z "$$tag" ]; then echo "ERROR: $(GOWER_VERSION_FILE) vacío"; exit 1; fi; \
+	url="https://github.com/$(GOWER_REPO)/releases/download/$$tag/$(GOWER_ASSET)"; \
+	echo "Verificando $(GOWER_REPO)@$$tag..."; \
+	if curl -fsSL -r 0-0 -o /dev/null "$$url"; then \
+		echo "OK: $$url"; \
+	else \
+		echo "ERROR: no existe el asset en $$url"; exit 1; \
+	fi
+
 ## TESTS ##
 
 # Orquestador: ejecuta toda la suite. Los E2E quedan fuera porque no hay specs
@@ -89,6 +116,13 @@ test-integration: $(FRONTEND_STAMP)
 	$(GO) vet ./...
 	@echo "==> go build (enlaza //go:embed de frontend/build)"
 	$(GO) build -o /dev/null .
+
+# Verificación del contrato con el sidecar real. Necesita GOWER_BIN (y opcional
+# GOWER_CONTRACT); por eso NO forma parte de `make test`, que debe correr sin
+# el binario. En CI lo cablea el job `test` descargando el pin.
+test-contract: $(FRONTEND_STAMP)
+	@echo "==> Go contract tests"
+	$(GO) test ./... -run 'TestGowerContract' -count=1 -v
 
 # Tests E2E (Playwright). Desactivado hasta escribir los specs.
 test-e2e:

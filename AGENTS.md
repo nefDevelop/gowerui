@@ -54,6 +54,7 @@ cambio de UI, un fix puntual o configuración.
 | `make test` | Suite completa: `test-unit` + `test-integration` |
 | `make test-unit` | `go test ./...` + `npm run test:unit` (Vitest) |
 | `make test-integration` | `go vet ./...` + `go build` (verifica el `//go:embed`) |
+| `make test-contract` | Verifica el contrato contra el binario pineado (necesita `GOWER_BIN`) |
 | `make lint` | `gofmt -l` + `go vet ./...` |
 | `make typecheck` | `svelte-check` |
 | `make check` | `lint` + `typecheck` + `test` |
@@ -89,6 +90,9 @@ cambio de UI, un fix puntual o configuración.
    instalación habituales. Si cambias el layout del bundle, actualiza
    `lookupGowerPath` **y** el paso de empaquetado del workflow, que deben
    seguir coincidiendo.
+   La versión del sidecar que se empaqueta está fijada en `.gower-version` (no
+   se usa `releases/latest`). Tras cambiar el pin, regenera el JSON con
+   `make sidecar-info` y comprueba la release con `make verify-sidecar`.
 
 5. **La config de la GUI vive en `~/.config/gowerui/settings.json`**, no en el
    config de `gower`: son cosas que `gower` no necesita saber. Se carga en
@@ -123,6 +127,13 @@ cambio de UI, un fix puntual o configuración.
 10. **Los stores de Svelte son singletons a nivel de módulo.** El estado persiste
    entre tests del mismo fichero. Límpialos en `beforeEach`/`afterEach` (patrón
    `clearNotifications()`).
+
+11. **gower escribe el JSON de `--json` en stderr, no en stdout.** Por eso
+   `RunGowerCommand` usa `CombinedOutput` y el test de contrato
+   (`contract_test.go`) captura ambos streams y extrae el primer `{`/`[`. No
+   cambies la captura a `cmd.Output()`: perderías el JSON. La verificación del
+   contrato necesita `GOWER_BIN` (y opcionalmente `GOWER_CONTRACT`) y se omite
+   si no están.
 
 ## Convenciones
 
