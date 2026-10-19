@@ -19,6 +19,13 @@
         appContext = null,
     } = $props();
 
+    /**
+     * Motivo del último fallo de búsqueda. Vivía en un `catch` vacío, así que
+     * un proveedor caído se pintaba como "No se encontraron resultados.".
+     * @type {string}
+     */
+    let searchError = $state("");
+
     // Dynamically get enabled providers from status and config
     const providers = $derived(() => {
         const defaultList = ["wallhaven", "reddit", "bing", "unsplash", "nasa"];
@@ -61,6 +68,7 @@
         if (resetPage) searchPage = 1;
 
         loading = true;
+        searchError = "";
         try {
             const result = await gower.search(
                 searchQuery,
@@ -100,7 +108,9 @@
 
             lastSearchTime = Date.now();
         } catch (e) {
-            // console.error("[SEARCH] Error:", e);
+            // Un fallo del proveedor no es "no hay resultados": guardarlo para
+            // mostrarlo y no mentir con el estado vacío.
+            searchError = String(e?.message ?? e ?? "").trim();
         } finally {
             loading = false;
         }
@@ -147,6 +157,12 @@
         >
     </div>
 
+    {#if searchError}
+        <div class="search-error" role="alert">
+            {$t("search.error", { error: searchError })}
+        </div>
+    {/if}
+
     <div class="results-area" onwheel={handleWheel}>
         {#if loading || searchResults.length > 0}
             <div class="grid-container premium-scroll">
@@ -192,9 +208,9 @@
                     </div>
                 </div>
             {/if}
-        {:else if !loading && searchQuery}
+        {:else if !loading && !searchError && searchQuery}
             <div class="empty">{$t("search.no_results")}</div>
-        {:else}
+        {:else if !loading && !searchError}
             <div class="empty hint">{$t("search.hint")}</div>
         {/if}
     </div>
@@ -226,6 +242,16 @@
         flex-direction: column;
         overflow: hidden;
         position: relative;
+    }
+
+    .search-error {
+        flex-shrink: 0;
+        padding: var(--spacing-xs) var(--spacing-s);
+        border: 1px solid var(--error);
+        border-radius: var(--radius-m, 8px);
+        color: var(--error);
+        font-size: 0.85rem;
+        word-break: break-word;
     }
 
     .grid-container {

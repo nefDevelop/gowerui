@@ -73,6 +73,10 @@ export const dictionary = {
         "search.page": "Página {page}",
         "search.no_results": "No se encontraron resultados.",
         "search.hint": "Busca algo increíble.",
+        "search.error": "La búsqueda falló: {error}",
+
+        "command.failed": "gower falló: {error}",
+        "command.failed_no_details": "gower falló sin dar detalles",
 
         "tabs.home": "Inicio",
         "tabs.search": "Buscar",
@@ -155,6 +159,10 @@ export const dictionary = {
         "search.page": "Page {page}",
         "search.no_results": "No results found.",
         "search.hint": "Search for something amazing.",
+        "search.error": "Search failed: {error}",
+
+        "command.failed": "gower failed: {error}",
+        "command.failed_no_details": "gower failed without details",
 
         "tabs.home": "Home",
         "tabs.search": "Search",

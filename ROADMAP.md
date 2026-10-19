@@ -41,8 +41,9 @@ Este documento describe los pasos necesarios y las características planificadas
 - [x] **Verificación del contrato en gowerGUI**: `contract_test.go` descarga/usa el binario y el `gower-contract.json` del tag pineado, los ejecuta sobre un `HOME` aislado y valida las claves `--json`. Cableado en el job `test` del CI.
 - [x] **Bump del pin automatizado**: gower dispara `repository_dispatch` al publicar tag y `bump-sidecar.yml` abre un PR que solo actualiza `.gower-version`.
 - [x] **Instalación local**: `make install` compila, descarga el sidecar del pin (checksum verificado) y deja binario, sidecar, lanzador e icono bajo `~/.local`, sin `sudo`.
+- [x] **Errores silenciosos en background**: un `set` fallido (por ejemplo, sin backend de wallpaper en niri) no mostraba nada porque el evento `gower-command-finished` no llevaba el resultado y el `stderr` solo iba al stdout de la app. Ahora se emite `gower-command-failed` con el error resumido y la UI lo muestra como toast. La búsqueda tenía el mismo problema por un `catch` vacío: un proveedor caído se pintaba como "No se encontraron resultados."; ahora muestra el motivo en un aviso.
 - [ ] **Tests E2E**: Configurar `playwright.config.js` y escribir los primeros specs.
-- [ ] **Tests de componentes Svelte**: Cubrir `WallpaperGrid`, `SearchPanel`, `SettingsPanel`, `ToastContainer`.
+- [ ] **Tests de componentes Svelte**: `SearchPanel` ya tiene tests del estado de error; faltan `WallpaperGrid`, `SettingsPanel` y `ToastContainer`.
 - [ ] **Internacionalizar los toasts y el tray**: ~15 mensajes en `+page.svelte` y el menú del tray (`main.go`) están en español fijo. La app se declara multi-idioma pero estas cadenas nunca se traducen.
 - [ ] **Actualizaciones Automáticas**: Implementar un sistema de actualización para la aplicación.
 - [ ] **Mejoras en el Tray**: Añadir más opciones rápidas al menú de la bandeja. De paso, el tray debería emitir `window-shown` para que el listener que se ha borrado tenga sentido si se recupera.

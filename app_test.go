@@ -675,6 +675,43 @@ func (r *eventRecorder) wait(t *testing.T, timeout time.Duration) emittedEvent {
 	return emittedEvent{}
 }
 
+// waitFor espera a un evento concreto por nombre y lo devuelve. Necesario
+// cuando una misma ejecución emite varios eventos (fallo y fin), donde `wait`
+// devolvería solo el primero.
+func (r *eventRecorder) waitFor(t *testing.T, name string, timeout time.Duration) emittedEvent {
+	t.Helper()
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		r.mu.Lock()
+		for _, evt := range r.events {
+			if evt.name == name {
+				r.mu.Unlock()
+				return evt
+			}
+		}
+		r.mu.Unlock()
+		time.Sleep(2 * time.Millisecond)
+	}
+
+	t.Fatalf("no se emitió el evento %q en %s", name, timeout)
+	return emittedEvent{}
+}
+
+// count devuelve cuántos eventos con ese nombre se han emitido hasta ahora.
+func (r *eventRecorder) count(name string) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	total := 0
+	for _, evt := range r.events {
+		if evt.name == name {
+			total++
+		}
+	}
+	return total
+}
+
 func TestRunGowerCommandBackgroundEmitsFinishedEvent(t *testing.T) {
 	fakeGower(t, "exit 0")
 
@@ -721,8 +758,100 @@ func TestRunGowerCommandBackgroundEmitsEvenOnFailure(t *testing.T) {
 		t.Fatalf("RunGowerCommand() error inesperado: %v", err)
 	}
 
-	if evt := recorder.wait(t, 5*time.Second); evt.name != "gower-command-finished" {
+	if evt := recorder.waitFor(t, "gower-command-finished", 5*time.Second); evt.name != "gower-command-finished" {
 		t.Errorf("evento = %q, se esperaba %q pese al fallo", evt.name, "gower-command-finished")
+	}
+}
+
+// El fallo de un comando en background debe llegar al frontend con el motivo,
+// no solo al stdout de la app: es lo que permite mostrar un toast en vez de
+// dejar al usuario mirando cómo no pasa nada.
+func TestRunGowerCommandBackgroundEmitsFailureWithStderr(t *testing.T) {
+	fakeGower(t, `echo "[DEBUG] preparando el cambio" >&2
+echo "Usage: gower set [id|url|random]" >&2
+echo "Error: no such wallpaper" >&2
+exit 1`)
+
+	recorder := &eventRecorder{}
+	app := NewApp()
+	app.emit = recorder.emit
+
+	if _, err := app.RunGowerCommand([]string{"set", "missing"}, true); err != nil {
+		t.Fatalf("RunGowerCommand() error inesperado: %v", err)
+	}
+
+	evt := recorder.waitFor(t, "gower-command-failed", 5*time.Second)
+	if len(evt.data) != 1 {
+		t.Fatalf("data = %v, se esperaba un único argumento", evt.data)
+	}
+
+	payload, ok := evt.data[0].(backgroundCommandFailure)
+	if !ok {
+		t.Fatalf("data[0] = %T, se esperaba backgroundCommandFailure", evt.data[0])
+	}
+	if payload.Error != "no such wallpaper" {
+		t.Errorf("Error = %q, se esperaba el mensaje de la línea Error:", payload.Error)
+	}
+	if len(payload.Args) != 2 || payload.Args[0] != "set" || payload.Args[1] != "missing" {
+		t.Errorf("Args = %v, se esperaba [set missing]", payload.Args)
+	}
+
+	// El evento de fin se mantiene: la UI lo usa para refrescar sus listas.
+	recorder.waitFor(t, "gower-command-finished", 5*time.Second)
+}
+
+// Un comando que termina bien no debe generar avisos de error.
+func TestRunGowerCommandBackgroundSuccessDoesNotEmitFailure(t *testing.T) {
+	fakeGower(t, "exit 0")
+
+	recorder := &eventRecorder{}
+	app := NewApp()
+	app.emit = recorder.emit
+
+	if _, err := app.RunGowerCommand([]string{"set", "abc123"}, true); err != nil {
+		t.Fatalf("RunGowerCommand() error inesperado: %v", err)
+	}
+
+	recorder.waitFor(t, "gower-command-finished", 5*time.Second)
+	if n := recorder.count("gower-command-failed"); n != 0 {
+		t.Errorf("se emitieron %d eventos de fallo en un comando correcto", n)
+	}
+}
+
+func TestSummarizeGowerError(t *testing.T) {
+	tests := []struct {
+		name   string
+		stderr string
+		want   string
+	}{
+		{
+			name:   "prefiere la línea Error y quita el prefijo",
+			stderr: "[DEBUG] preparando\nUsage: gower set\nError: no such wallpaper\n",
+			want:   "no such wallpaper",
+		},
+		{
+			name:   "sin línea Error usa la última con contenido",
+			stderr: "primera línea\n\núltima línea\n\n",
+			want:   "última línea",
+		},
+		{
+			name:   "stderr vacío no inventa mensaje",
+			stderr: " \n\t\n",
+			want:   "",
+		},
+		{
+			name:   "recorta los mensajes largos",
+			stderr: strings.Repeat("a", 500),
+			want:   strings.Repeat("a", 239) + "…",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := summarizeGowerError(tt.stderr); got != tt.want {
+				t.Errorf("summarizeGowerError() = %q, se esperaba %q", got, tt.want)
+			}
+		})
 	}
 }
 

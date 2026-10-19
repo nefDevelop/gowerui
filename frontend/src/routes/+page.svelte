@@ -640,6 +640,7 @@
 
     onMount(() => {
         let unlistenCommand;
+        let unlistenCommandFailed;
 
         async function init() {
             console.log("[init] Iniciando carga de la aplicación...");
@@ -673,6 +674,25 @@
 
                 // Run update in background if needed
                 gower.updateFeed();
+
+                // Los comandos en background fallan fuera del ciclo de la
+                // promesa (`setWallpaper` ya devolvió), así que el único canal
+                // para contarlo es este evento. Sin él, el usuario veía que la
+                // acción no hacía nada y el motivo solo iba al stdout.
+                // @ts-ignore
+                unlistenCommandFailed = window.runtime.EventsOn(
+                    "gower-command-failed",
+                    (payload) => {
+                        const detail = String(payload?.error || "").trim();
+                        notificationsStore.add(
+                            detail
+                                ? $t("command.failed", { error: detail })
+                                : $t("command.failed_no_details"),
+                            "error",
+                            8000,
+                        );
+                    },
+                );
 
                 // @ts-ignore
                 unlistenCommand = window.runtime.EventsOn("gower-command-finished", (args) => {
@@ -736,6 +756,7 @@
         return () => {
             clearInterval(pollInterval);
             if (unlistenCommand) unlistenCommand();
+            if (unlistenCommandFailed) unlistenCommandFailed();
         };
     });
 

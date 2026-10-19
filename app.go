@@ -194,6 +194,12 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 			err := cmd.Wait()
 			if err != nil {
 				fmt.Printf("[BACKEND] Background command failed: %v\n[GOWER ERROR] %s\n", err, stderr.String())
+				// El fallo viaja al frontend: sin esto el usuario veía cómo la
+				// acción no hacía nada y el motivo solo quedaba en stdout.
+				a.emit("gower-command-failed", backgroundCommandFailure{
+					Args:  args,
+					Error: summarizeGowerError(stderr.String()),
+				})
 			} else {
 				fmt.Printf("[BACKEND] Background command finished successfully\n")
 			}
@@ -213,6 +219,46 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 
 func (a *App) resolveGowerPath() (string, error) {
 	return lookupGowerPath(a.customPath, currentExecutablePath())
+}
+
+// backgroundCommandFailure es el payload de `gower-command-failed`, que se
+// emite solo cuando un comando en background termina con error. Se separan los
+// argumentos y la causa para que la UI pueda contextualizar el aviso sin
+// parsear texto libre.
+type backgroundCommandFailure struct {
+	Args  []string `json:"args"`
+	Error string   `json:"error"`
+}
+
+// summarizeGowerError reduce el stderr de gower a la línea que explica el
+// fallo. El CLI mezcla logs con timestamp, el bloque de ayuda de cobra y el
+// mensaje final de error, así que volcar el stderr entero en un toast es
+// ilegible. Se prefiere la línea "Error: ..." y, si no la hay, la última línea
+// con contenido.
+func summarizeGowerError(stderr string) string {
+	const maxLen = 240
+
+	fallback := ""
+	for _, raw := range strings.Split(stderr, "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			continue
+		}
+		fallback = line
+		if strings.HasPrefix(strings.ToLower(line), "error:") {
+			return truncateText(strings.TrimSpace(line[len("error:"):]), maxLen)
+		}
+	}
+	return truncateText(fallback, maxLen)
+}
+
+// truncateText recorta por runas para no partir un carácter multibyte a mitad.
+func truncateText(text string, max int) string {
+	runes := []rune(text)
+	if len(runes) <= max {
+		return text
+	}
+	return strings.TrimSpace(string(runes[:max-1])) + "…"
 }
 
 // lookupGowerPath busca el binario del sidecar en orden de precedencia:

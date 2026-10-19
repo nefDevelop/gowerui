@@ -112,7 +112,8 @@ cambio de UI, un fix puntual o configuración.
    tocan `settings.json`. Al añadir un caso "no encontrado", respétalos.
 
 8. **`App.emit` permite doblar los eventos de Wails.** La ruta background de
-   `RunGowerCommand` lanza una goroutine que emite `gower-command-finished`.
+   `RunGowerCommand` lanza una goroutine que emite `gower-command-finished` y,
+   si el comando falla, `gower-command-failed` con `{args, error}`.
    `NewApp()` deja un `emit` no-op y `startup` lo sustituye por
    `wailsRuntime.EventsEmit`, así que los tests pueden capturarlo. Si añades un
    evento nuevo, usa siempre `a.emit(...)`: llamar a `wailsRuntime` directo hace

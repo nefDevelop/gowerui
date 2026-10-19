@@ -164,7 +164,10 @@ el array anidado.
 | `updateFeed()` | `feed update` *(background)* |
 
 *(background)* = se ejecuta con `background=true`: el backend no espera y emite
-el evento `gower-command-finished` cuando termina.
+el evento `gower-command-finished` cuando termina. Si el comando falla, emite
+además `gower-command-failed` con `{args, error}` —el `stderr` de gower ya
+resumido—, que es lo que dispara el toast de error en la UI. Sin ese evento el
+fallo solo quedaba en el stdout de la app y la acción parecía no hacer nada.
 
 ### 2.4 Carga de miniaturas
 
