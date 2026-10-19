@@ -59,6 +59,7 @@ cambio de UI, un fix puntual o configuración.
 | `make typecheck` | `svelte-check` |
 | `make check` | `lint` + `typecheck` + `test` |
 | `make build` | `wails build -tags webkit2_41` |
+| `make install` | `build` + descarga el sidecar del pin (con checksum) y lo instala en `~/.local` (solo Linux) |
 | `make dev` | `wails dev` |
 
 ## Gotchas críticos

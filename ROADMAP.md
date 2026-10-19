@@ -40,6 +40,7 @@ Este documento describe los pasos necesarios y las características planificadas
 ## 🌟 Fase 5: Pendiente
 - [x] **Verificación del contrato en gowerGUI**: `contract_test.go` descarga/usa el binario y el `gower-contract.json` del tag pineado, los ejecuta sobre un `HOME` aislado y valida las claves `--json`. Cableado en el job `test` del CI.
 - [x] **Bump del pin automatizado**: gower dispara `repository_dispatch` al publicar tag y `bump-sidecar.yml` abre un PR que solo actualiza `.gower-version`.
+- [x] **Instalación local**: `make install` compila, descarga el sidecar del pin (checksum verificado) y deja binario, sidecar, lanzador e icono bajo `~/.local`, sin `sudo`.
 - [ ] **Tests E2E**: Configurar `playwright.config.js` y escribir los primeros specs.
 - [ ] **Tests de componentes Svelte**: Cubrir `WallpaperGrid`, `SearchPanel`, `SettingsPanel`, `ToastContainer`.
 - [ ] **Internacionalizar los toasts y el tray**: ~15 mensajes en `+page.svelte` y el menú del tray (`main.go`) están en español fijo. La app se declara multi-idioma pero estas cadenas nunca se traducen.

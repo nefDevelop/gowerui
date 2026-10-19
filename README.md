@@ -109,6 +109,24 @@ make build
 En Linux es obligatorio el tag `webkit2_41` (ya incluido en el target), que
 selecciona WebKitGTK 4.1.
 
+## Instalación local (Linux)
+
+`make install` compila la app (si hace falta), descarga el sidecar `gower` del
+tag fijado en `.gower-version` —verificando el checksum publicado en la
+release— y lo instala todo en `$PREFIX`, por defecto `~/.local`. No hace falta
+`sudo`:
+
+| Qué | Dónde |
+|---|---|
+| `gowerui` y el sidecar `gower` | `~/.local/bin/` |
+| Lanzador del menú | `~/.local/share/applications/gowerui.desktop` |
+| Icono | `~/.local/share/icons/hicolor/128x128/apps/gowerui.png` |
+
+El binario y el sidecar quedan como ficheros hermanos, que es el layout que
+resuelve `lookupGowerPath`, así que la instalación es autocontenida. Para otro
+prefijo, `make install PREFIX=/usr/local` (en ese caso sí necesitas permisos de
+escritura).
+
 ## Contrato con gower
 
 La app depende de la salida `--json` de `gower`. Ese formato es un contrato

@@ -20,7 +20,7 @@ GOWER_VERSION_FILE := .gower-version
 GOWER_REPO := nefDevelop/gower
 GOWER_ASSET := gower
 
-.PHONY: all build dev clean install-deps \
+.PHONY: all build dev clean install install-deps \
         frontend-build frontend-install-deps \
         sidecar-info verify-sidecar \
         test test-unit test-integration test-contract test-e2e \
@@ -68,6 +68,50 @@ build: frontend-build
 
 dev: frontend-install-deps
 	$(WAILS) dev $(WAILS_TAGS)
+
+## INSTALACIÓN LOCAL (Linux) ##
+
+# Instala para el usuario actual, sin sudo. `PREFIX` sigue la convención XDG:
+# el lanzador y el icono van bajo $PREFIX/share y los binarios en $PREFIX/bin.
+PREFIX ?= $(HOME)/.local
+BINDIR ?= $(PREFIX)/bin
+APPDIR ?= $(PREFIX)/share/applications
+ICONDIR ?= $(PREFIX)/share/icons/hicolor/128x128/apps
+APP_ID := gowerui
+
+# El sidecar se descarga del pin, como en las releases portables: nunca de
+# releases/latest, para que local y CI instalen la misma versión.
+SIDECAR_DIR := sidecar
+SIDECAR_BIN := $(SIDECAR_DIR)/$(GOWER_ASSET)
+
+# La pareja gowerui+gower queda como ficheros hermanos en $(BINDIR), que es el
+# layout que resuelve lookupGowerPath (sidecar junto al ejecutable). Si cambias
+# esto, cambia también el orden de búsqueda de app.go.
+install: build $(SIDECAR_BIN)
+	@echo "Instalando $(APP_ID) $(APP_VERSION) en $(BINDIR)..."
+	mkdir -p $(BINDIR) $(APPDIR) $(ICONDIR)
+	install -m 0755 build/bin/$(APP_ID) $(BINDIR)/$(APP_ID)
+	install -m 0755 $(SIDECAR_BIN) $(BINDIR)/$(GOWER_ASSET)
+	install -m 0644 frontend/static/favicon.png $(ICONDIR)/$(APP_ID).png
+	@# Ruta absoluta en Exec e Icon: el lanzador del menú no hereda cwd y el
+	@# nombre de icono lo resuelve el tema hicolor.
+	@{ \
+		echo '[Desktop Entry]'; \
+		echo 'Type=Application'; \
+		echo 'Name=Gower UI'; \
+		echo 'Comment=GUI for Gower Wallpaper Engine'; \
+		echo 'Exec=$(BINDIR)/$(APP_ID)'; \
+		echo 'Icon=$(APP_ID)'; \
+		echo 'Terminal=false'; \
+		echo 'Categories=Utility;Graphics;'; \
+	} > $(APPDIR)/$(APP_ID).desktop
+	chmod 0644 $(APPDIR)/$(APP_ID).desktop
+	@echo "Listo. Ejecuta '$(APP_ID)' o búscalo en el menú de aplicaciones."
+
+# Fichero materializado para que make no revalide el checksum en cada `make
+# install`; al cambiar el pin o el script, se vuelve a descargar.
+$(SIDECAR_BIN): $(GOWER_VERSION_FILE) scripts/fetch-sidecar.sh
+	bash scripts/fetch-sidecar.sh $(SIDECAR_DIR)
 
 clean:
 	@echo "Cleaning build artifacts..."
