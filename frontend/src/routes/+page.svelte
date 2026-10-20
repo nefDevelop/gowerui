@@ -2,7 +2,7 @@
     import { onMount, tick, untrack } from "svelte";
     import { t } from "$lib/stores/i18n";
     import { theme } from "$lib/stores/theme";
-    import { gower, getAppContext, mapThumbnails, checkFileExists, normalizeId } from "$lib/api";
+    import { gower, getAppContext, mapThumbnails, checkFileExists, normalizeId, wallpaperTarget } from "$lib/api";
     import { fade } from "svelte/transition";
 
     import ColorBar from "$lib/components/ColorBar.svelte";
@@ -210,14 +210,11 @@
     async function setWallpaper(item, monitorId = "") {
         if (!item) return;
 
-        const isLocal =
-            item.path &&
-            config?.paths?.wallpapers &&
-            item.path.startsWith(config.paths.wallpapers);
-        const target = isLocal ? item.path : item.id.replace("local_", "");
-
         try {
-            await gower.setWallpaper(target, monitorId);
+            await gower.setWallpaper(
+                wallpaperTarget(item, currentTab === "search"),
+                monitorId,
+            );
             contextMenu.open = false;
             // Refreshed via background event
         } catch (e) { // Keep error for user feedback
@@ -272,7 +269,11 @@
         // el segundo heredaba timeout=undefined, así que nunca se eliminaba.
         const toastId = notificationsStore.add("Descargando...", "info", 0);
         try {
-            await gower.download(snap.id);
+            await gower.download(
+                snap.origin === "search" || currentTab === "search"
+                    ? snap.url || snap.id
+                    : snap.id,
+            );
             notificationsStore.update(toastId, "Descarga iniciada", "success");
             // Refresh feed happens via background event
         } catch (e) { // Keep error for user feedback
@@ -288,8 +289,9 @@
         if (!item || monitors.length === 0) return;
         loading = true;
         try {
+            const target = wallpaperTarget(item, currentTab === "search");
             for (const m of monitors) {
-                await gower.setWallpaper(item.id, m.ID);
+                await gower.setWallpaper(target, m.ID);
             }
             contextMenu.open = false; // Close context menu after action
         } catch (e) {
@@ -651,7 +653,13 @@
                     const data = JSON.parse(saved);
                     const now = Date.now();
                     if (now - data.lastSearchTime < 900000) {
-                        searchResults = data.searchResults || [];
+                        // Los resultados guardados antes de este cambio no
+                        // llevan `origin`: sin él se aplicarían por id y gower
+                        // respondería "wallpaper not found".
+                        searchResults = (data.searchResults || []).map((item) => ({
+                            ...item,
+                            origin: item.origin || "search",
+                        }));
                         searchQuery = data.searchQuery || "";
                         searchPage = data.searchPage || 1;
                         selectedProvider = data.selectedProvider || "wallhaven";

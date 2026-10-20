@@ -99,6 +99,9 @@
                 (item) => ({
                     ...item,
                     provider: item.provider || selectedProvider,
+                    // Los resultados de explore no están en el feed de gower:
+                    // para aplicarlos hay que pasar la URL, no el id.
+                    origin: "search",
                 }),
             );
 

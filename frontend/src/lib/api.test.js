@@ -4,6 +4,7 @@ import {
     runGower,
     mapThumbnails,
     normalizeId,
+    wallpaperTarget,
     gower,
     getAppContext,
     checkBattery,
@@ -413,5 +414,45 @@ describe('api / normalizeId', () => {
 
     it('should trim surrounding whitespace', () => {
         expect(normalizeId('  abc  ')).toBe('abc');
+    });
+});
+
+describe('api / wallpaperTarget', () => {
+    it('should use the id for a wallpaper from the feed', () => {
+        expect(wallpaperTarget({ id: 'wh_1' })).toBe('wh_1');
+    });
+
+    it('should use the url for a search result', () => {
+        const item = {
+            id: 'wh_6lepll',
+            url: 'https://w.wallhaven.cc/full/6l/wallhaven-6lepll.png',
+            origin: 'search',
+        };
+        expect(wallpaperTarget(item)).toBe(item.url);
+    });
+
+    it('should fall back to the id when a search result has no url', () => {
+        expect(wallpaperTarget({ id: 'wh_9', origin: 'search' })).toBe('wh_9');
+    });
+
+    it('should prefer the url when the caller knows the item is from search', () => {
+        const item = { id: 'wh_5', url: 'https://cdn/e.png' };
+        expect(wallpaperTarget(item, true)).toBe(item.url);
+    });
+
+    it('should strip the local_ prefix from the id', () => {
+        expect(wallpaperTarget({ id: 'local_77' })).toBe('77');
+    });
+
+    // Regresión: gower set no acepta rutas; las trata como id y responde
+    // "wallpaper with ID /home/... not found". Un wallpaper de la colección
+    // local ya tiene id en el feed, así que se aplica por id.
+    it('should never send a local file path as the target', () => {
+        const item = {
+            id: 'bg_20260125',
+            path: '/home/u/Imágenes/Wallpapers/bg_20260125 [d].jpg',
+            url: '/home/u/Imágenes/Wallpapers/bg_20260125 [d].jpg',
+        };
+        expect(wallpaperTarget(item)).toBe('bg_20260125');
     });
 });

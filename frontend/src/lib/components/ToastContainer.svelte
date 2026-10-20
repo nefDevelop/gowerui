@@ -79,7 +79,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        max-width: 240px;
+        max-width: 320px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         border-left: 3px solid var(--primary);
         position: relative;
@@ -112,9 +112,15 @@
         flex: 1;
         font-size: 0.8rem;
         line-height: 1.2;
-        white-space: nowrap;
+        /* Los errores de gower son largos ("wallpaper with ID ... not found").
+           Con nowrap+ellipsis se cortaba justo la causa, así que se permiten
+           varias líneas con un tope para no tapar la UI. */
+        white-space: normal;
+        overflow-wrap: anywhere;
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
         overflow: hidden;
-        text-overflow: ellipsis;
     }
 
     .close-btn {

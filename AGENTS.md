@@ -137,6 +137,18 @@ cambio de UI, un fix puntual o configuración.
    contrato necesita `GOWER_BIN` (y opcionalmente `GOWER_CONTRACT`) y se omite
    si no están.
 
+12. **Los resultados de Buscar no existen para el resto de comandos.** `explore`
+    devuelve wallpapers que no están en el feed, así que `gower set <id>` falla
+    con `wallpaper with ID ... not found`; `set <url>` sí funciona (lo descarga
+    y lo registra como `manual`). Por eso `SearchPanel` marca sus items con
+    `origin: "search"` y todo lo que aplica un wallpaper pasa por
+    `wallpaperTarget(item, preferUrl)`, que elige URL (resultado de búsqueda) o
+    id. **Nunca la ruta de un fichero**: `set` solo acepta id, URL o `random` y
+    trataba la ruta como id (`wallpaper with ID /home/... not found`), también
+    para los wallpapers de la colección local, que ya tienen id en el feed.
+    `favorites add` y `blacklist add` solo aceptan id: favoritear o bloquear
+    desde Buscar sigue fallando.
+
 ## Convenciones
 
 - **Comentarios y docs en español**; nombres de código, commits y mensajes de

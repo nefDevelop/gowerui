@@ -241,6 +241,30 @@ export function normalizeId(id) {
 }
 
 /**
+ * Traduce un item de la UI al argumento que espera `gower set`: URL para los
+ * resultados de Buscar e id para todo lo demás.
+ *
+ * Los resultados de `explore` no están en el feed de gower, así que `set <id>`
+ * falla con "wallpaper not found"; `set <url>` sí funciona porque gower lo
+ * descarga. `SearchPanel` marca sus items con `origin: "search"`, pero los
+ * resultados restaurados de localStorage pueden venir sin la marca; por eso
+ * `preferUrl` deja al llamante forzarlo cuando sabe que está en Buscar.
+ *
+ * Nunca se manda la ruta de un fichero: `gower set` solo acepta id, URL o
+ * "random" y trataba la ruta como un id ("wallpaper with ID /home/... not
+ * found"), incluso para wallpapers de la colección local, que ya tienen id en
+ * el feed.
+ *
+ * @param {{id: string, url?: string, origin?: string}} item
+ * @param {boolean} [preferUrl] fuerza la URL si el item tiene una
+ * @returns {string}
+ */
+export function wallpaperTarget(item, preferUrl = false) {
+  if ((preferUrl || item.origin === "search") && item.url) return item.url;
+  return String(item.id).replace("local_", "");
+}
+
+/**
  * Common gower commands mapped to easy-to-use functions.
  */
 export const gower = {
