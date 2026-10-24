@@ -62,3 +62,4 @@ Thumbs.db
 status.json
 search_sample.json
 dist-releases/
+.commandcode/
