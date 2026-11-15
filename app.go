@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,6 +24,10 @@ type App struct {
 	ctx        context.Context
 	customPath string
 	settings   appSettings
+
+	// tray permite que el cierre de la ventana sepa si existe un icono desde
+	// el que reabrirla. Se inicializa en NewApp para que nunca sea nil.
+	tray *trayState
 
 	// emit permite sustituir el sistema de eventos de Wails por un doble en los
 	// tests. La ruta background de RunGowerCommand emite desde una goroutine, y
@@ -44,7 +49,10 @@ type appSettings struct {
 func NewApp() *App {
 	// Por defecto no se emite nada: así una App usada sin startup (tests, o
 	// cualquier llamada previa a OnStartup) no entra en panic.
-	return &App{emit: func(string, ...interface{}) {}}
+	return &App{
+		tray: &trayState{},
+		emit: func(string, ...interface{}) {},
+	}
 }
 
 // startup is called when the app starts. The context is saved
@@ -57,7 +65,7 @@ func (a *App) startup(ctx context.Context) {
 	// Recuperar la ruta guardada es lo primero: si el usuario la configuró en
 	// una sesión anterior, todas las llamadas a gower dependen de ella.
 	if err := a.loadSettings(); err != nil {
-		fmt.Printf("[BACKEND] Could not load settings: %v\n", err)
+		log.Printf("[BACKEND] Could not load settings: %v", err)
 	}
 }
 
@@ -97,7 +105,7 @@ func (a *App) loadSettings() error {
 	if err := json.Unmarshal(data, &s); err != nil {
 		// Un fichero corrupto no debe dejar la app sin motor: se descarta y se
 		// sigue con el autodescubrimiento.
-		fmt.Printf("[BACKEND] Ignoring malformed settings file %s: %v\n", path, err)
+		log.Printf("[BACKEND] Ignoring malformed settings file %s: %v", path, err)
 		return nil
 	}
 
@@ -163,7 +171,7 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 
 	gowerPath, err := a.resolveGowerPath()
 	if err != nil {
-		fmt.Printf("[BACKEND] Error resolving gower path: %v\n", err)
+		log.Printf("[BACKEND] Error resolving gower path: %v", err)
 		return "", err
 	}
 
@@ -175,7 +183,7 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 	// El shell no aportaba resolución de entorno: cmd.Env ya hereda el del
 	// proceso, y gowerPath es absoluto salvo cuando el usuario configura uno
 	// relativo, en cuyo caso exec.Command lo resuelve igual vía PATH.
-	fmt.Printf("[BACKEND] Executing: %s %s\n", gowerPath, strings.Join(args, " "))
+	log.Printf("[BACKEND] Executing: %s %s", gowerPath, strings.Join(args, " "))
 	cmd := exec.Command(gowerPath, args...)
 	cmd.Env = os.Environ() // Ensure process environment is passed
 
@@ -187,13 +195,13 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 
 		err := cmd.Start()
 		if err != nil {
-			fmt.Printf("[BACKEND] Error starting background command: %v\n", err)
+			log.Printf("[BACKEND] Error starting background command: %v", err)
 			return "", err
 		}
 		go func() {
 			err := cmd.Wait()
 			if err != nil {
-				fmt.Printf("[BACKEND] Background command failed: %v\n[GOWER ERROR] %s\n", err, stderr.String())
+				log.Printf("[BACKEND] Background command failed: %v\n[GOWER ERROR] %s", err, stderr.String())
 				// El fallo viaja al frontend: sin esto el usuario veía cómo la
 				// acción no hacía nada y el motivo solo quedaba en stdout.
 				a.emit("gower-command-failed", backgroundCommandFailure{
@@ -201,7 +209,7 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 					Error: summarizeGowerError(stderr.String()),
 				})
 			} else {
-				fmt.Printf("[BACKEND] Background command finished successfully\n")
+				log.Println("[BACKEND] Background command finished successfully")
 			}
 			a.emit("gower-command-finished", args)
 		}()
@@ -210,7 +218,7 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("[BACKEND] Command failed: %v\nOutput: %s\n", err, string(output))
+		log.Printf("[BACKEND] Command failed: %v\nOutput: %s", err, string(output))
 		return string(output), err
 	}
 
@@ -402,7 +410,7 @@ func (a *App) SetCustomGowerPath(path string) error {
 	if err := a.saveSettings(); err != nil {
 		// El path se queda aplicado en memoria aunque no se pueda persistir:
 		// es mejor que la app funcione en esta sesión que no funcionar.
-		fmt.Printf("[BACKEND] Could not persist settings: %v\n", err)
+		log.Printf("[BACKEND] Could not persist settings: %v", err)
 		return err
 	}
 
@@ -445,6 +453,13 @@ func (a *App) CheckFileExists(path string) bool {
 
 // OpenPath opens a file or URL using the system default handler
 func (a *App) OpenPath(path string) error {
+	return openWithSystemHandler(path)
+}
+
+// openWithSystemHandler lanza el handler del sistema sin bloquear la UI. El
+// Wait va en su propia goroutine: sin recolectar el hijo, cada apertura dejaba
+// un proceso zombi.
+func openWithSystemHandler(path string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
@@ -454,7 +469,46 @@ func (a *App) OpenPath(path string) error {
 	default: // Linux and others
 		cmd = exec.Command("xdg-open", path)
 	}
-	return cmd.Start()
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	go func() { _ = cmd.Wait() }()
+	return nil
+}
+
+// GetLogPath returns the path of the application log file.
+func (a *App) GetLogPath() string {
+	path, err := logPath()
+	if err != nil {
+		return ""
+	}
+	return path
+}
+
+// OpenLogFile opens the application log with the system handler, creating an
+// empty file when logging to disk has not produced one yet. Esto es lo que
+// convierte un fallo reportado por un usuario en algo diagnosticable.
+func (a *App) OpenLogFile() error {
+	path := a.GetLogPath()
+	if path == "" {
+		return errors.New("could not determine the log file location")
+	}
+
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
+
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o644)
+		if err != nil {
+			return err
+		}
+		file.Close()
+	}
+
+	return openWithSystemHandler(path)
 }
 
 // PickFile opens a file dialog to select the gower executable. The title is
@@ -480,7 +534,14 @@ func (a *App) PickDirectory(title string) (string, error) {
 	})
 }
 
-// CloseApp hides the window instead of quitting, so it stays in the tray
+// CloseApp hides the window when there is a tray icon to come back from, and
+// quits otherwise: hiding without a tray would strand the process.
 func (a *App) CloseApp() {
-	wailsRuntime.WindowHide(a.ctx)
+	if a.tray.shouldHideOnClose() {
+		wailsRuntime.WindowHide(a.ctx)
+		return
+	}
+
+	a.tray.markQuitting()
+	wailsRuntime.Quit(a.ctx)
 }

@@ -155,6 +155,25 @@ export async function getAppVersion() {
 }
 
 /**
+ * Opens the application log with the system handler. It is the only way to
+ * diagnose a failure for a user who launched the app from the menu and never
+ * sees stdout.
+ */
+export async function openLogFile() {
+  // @ts-ignore
+  return await window.go.main.App.OpenLogFile();
+}
+
+/**
+ * Path of the application log, for display or support requests.
+ * @returns {Promise<string>}
+ */
+export async function getLogPath() {
+  // @ts-ignore
+  return await window.go.main.App.GetLogPath();
+}
+
+/**
  * Where the gower binary is, and whether it can be found at all.
  * @returns {Promise<{resolved_path: string, configured_path: string, available: boolean, error: string}>}
  */

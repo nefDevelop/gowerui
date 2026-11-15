@@ -10,6 +10,8 @@ import {
     checkBattery,
     checkFileExists,
     getAppVersion,
+    openLogFile,
+    getLogPath,
     getGowerStatus,
     setCustomGowerPath,
     pickGowerBinary,
@@ -30,6 +32,8 @@ function mockBackend(overrides = {}) {
         PickFile: vi.fn().mockResolvedValue(''),
         PickDirectory: vi.fn().mockResolvedValue(''),
         GetAppVersion: vi.fn().mockResolvedValue('0.2.4'),
+        OpenLogFile: vi.fn().mockResolvedValue(undefined),
+        GetLogPath: vi.fn().mockResolvedValue('/home/u/.local/state/gowerui/gowerui.log'),
         ...overrides,
     };
     // @ts-ignore
@@ -284,6 +288,28 @@ describe('api / app version', () => {
     it('should surface the dev fallback', async () => {
         mockBackend({ GetAppVersion: vi.fn().mockResolvedValue('dev') });
         await expect(getAppVersion()).resolves.toBe('dev');
+    });
+});
+
+describe('api / logs', () => {
+    it('should open the log file', async () => {
+        const app = mockBackend();
+        await openLogFile();
+        expect(app.OpenLogFile).toHaveBeenCalled();
+    });
+
+    it('should expose the log path', async () => {
+        mockBackend();
+        await expect(getLogPath()).resolves.toContain('gowerui.log');
+    });
+
+    // Si el handler del sistema falla, el error debe llegar al llamador para
+    // que la UI lo muestre en vez de fallar en silencio.
+    it('should propagate a failure to open the log', async () => {
+        mockBackend({
+            OpenLogFile: vi.fn().mockRejectedValue(new Error('xdg-open failed')),
+        });
+        await expect(openLogFile()).rejects.toThrow('xdg-open failed');
     });
 });
 

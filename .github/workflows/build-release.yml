@@ -228,6 +228,17 @@ jobs:
           tar -czf gowerui-linux-portable.tar.gz gowerui-linux-portable/
           cp gowerui-linux-portable.tar.gz final-assets/
 
+      - name: smoke test (linux bundle)
+        if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # --doctor no inicializa GTK: arranca sin display y verifica que el
+          # sidecar viaja junto al ejecutable y que su versión es la del pin.
+          # Sin este paso el pipeline podía publicar un bundle que nunca se
+          # había ejecutado.
+          ./gowerui-linux-portable/gowerui --doctor
+
       - name: package (windows)
         if: matrix.platform == 'windows-latest'
         shell: bash

@@ -127,6 +127,17 @@ resuelve `lookupGowerPath`, así que la instalación es autocontenida. Para otro
 prefijo, `make install PREFIX=/usr/local` (en ese caso sí necesitas permisos de
 escritura).
 
+## Diagnóstico
+
+La app escribe en `~/.local/state/gowerui/gowerui.log` (`%LOCALAPPDATA%\gowerui\logs\gowerui.log` en Windows, `~/Library/Logs/gowerui/` en macOS) y lo rota al pasar de 1 MiB. Desde **Ajustes → Open logs** se abre con el visor del sistema, sin buscar la ruta a mano.
+
+Para comprobar una instalación sin abrir la interfaz:
+
+```bash
+gowerui --doctor    # sidecar, versión esperada, config y log; código 1 si algo falla
+gowerui --version
+```
+
 ## Contrato con gower
 
 La app depende de la salida `--json` de `gower`. Ese formato es un contrato

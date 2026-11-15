@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -28,6 +29,20 @@ var assets embed.FS
 var icon []byte
 
 func main() {
+	// Los modos sin interfaz (--version, --doctor, --help) se atienden antes de
+	// tocar GTK: así funcionan en una terminal, en CI y sin display.
+	if handled, code := handleCLI(os.Args[1:], os.Stdout); handled {
+		os.Exit(code)
+	}
+
+	// A partir de aquí se puede lanzar la GUI: el log va a fichero además de a
+	// stdout, porque lanzada desde el menú nadie ve el stdout.
+	if path, err := setupLogging(); err != nil {
+		fmt.Printf("[BACKEND] File logging disabled (%s): %v\n", path, err)
+	}
+
+	log.Printf("[BACKEND] gowerui %s starting (%s/%s)", version, runtime.GOOS, runtime.GOARCH)
+
 	// Hack for Wayland/Waybar compatibility
 	if runtime.GOOS == "linux" {
 		if os.Getenv("XDG_CURRENT_DESKTOP") == "" {
@@ -79,7 +94,7 @@ func main() {
 						http.ServeFile(w, r, decodedPath)
 						return
 					}
-					fmt.Printf("[ASSETS] Not found: %s\n", decodedPath)
+					log.Printf("[ASSETS] Not found: %s", decodedPath)
 					http.Error(w, "File not found", http.StatusNotFound)
 					return
 				}
@@ -89,45 +104,46 @@ func main() {
 		OnStartup: func(ctx context.Context) {
 			app.startup(ctx)
 
-			// Start the system tray in a goroutine with a small delay
+			// systray.Run bloquea y comparte GTK con Wails: se lanza en su
+			// propia goroutine y con margen para que Wails inicialice su loop.
 			go func() {
-				// Give Wails a moment to initialize its own GTK/Wayland loop
 				runtime.Gosched()
-
-				fmt.Println("[BACKEND] Iniciando System Tray...")
-				systray.Run(func() {
-					systray.SetIcon(icon)
-					systray.SetTitle("gowerui")
-					systray.SetTooltip("Gower Wallpaper Manager")
-
-					mShow := systray.AddMenuItem("Mostrar", "Mostrar la ventana")
-					systray.AddSeparator()
-					mQuit := systray.AddMenuItem("Salir", "Cerrar aplicación")
-
-					go func() {
-						for {
-							select {
-							case <-mShow.ClickedCh:
-								wailsRuntime.WindowShow(app.ctx)
-							case <-mQuit.ClickedCh:
-								wailsRuntime.Quit(app.ctx)
-							}
-						}
-					}()
-					fmt.Println("[BACKEND] System Tray listo.")
-				}, func() {
-					fmt.Println("[BACKEND] System Tray detenido.")
-				})
+				startTray(ctx, app.tray, icon)
 			}()
+		},
+		OnBeforeClose: func(ctx context.Context) bool {
+			// Ocultar solo es recuperable si el tray está vivo. Si no lo está,
+			// dejar que Wails cierre: es preferible salir a quedar sin ventana.
+			if app.tray.shouldHideOnClose() {
+				wailsRuntime.WindowHide(ctx)
+				return true
+			}
+
+			app.tray.markQuitting()
+			return false
+		},
+		OnShutdown: func(ctx context.Context) {
+			app.tray.markQuitting()
+			if app.tray.hasStarted() {
+				systray.Quit()
+			}
+		},
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId: "gowerui",
+			// Relanzar la app es la salida de emergencia cuando la ventana está
+			// oculta: muestra la instancia existente en vez de abrir otra.
+			OnSecondInstanceLaunch: func(options.SecondInstanceData) {
+				wailsRuntime.WindowShow(app.ctx)
+				wailsRuntime.WindowUnminimise(app.ctx)
+			},
 		},
 		Bind: []interface{}{
 			app,
 		},
-		Menu:              AppMenu,
-		Frameless:         true,
-		AlwaysOnTop:       true,
-		StartHidden:       false,
-		HideWindowOnClose: true,
+		Menu:        AppMenu,
+		Frameless:   true,
+		AlwaysOnTop: true,
+		StartHidden: false,
 		Windows: &windows.Options{
 			WebviewIsTransparent:              true,
 			WindowIsTranslucent:               true,
@@ -143,6 +159,9 @@ func main() {
 	})
 
 	if err != nil {
-		fmt.Println("Error:", err.Error())
+		// Un fallo al arrancar Wails no puede terminar con código 0: el
+		// lanzador del escritorio creería que la app se cerró bien.
+		log.Printf("[BACKEND] Fatal: %v", err)
+		os.Exit(1)
 	}
 }

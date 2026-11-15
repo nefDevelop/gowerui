@@ -22,7 +22,7 @@ GOWER_ASSET := gower
 
 .PHONY: all build dev clean install install-deps \
         frontend-build frontend-install-deps \
-        sidecar-info verify-sidecar \
+        sidecar-info verify-sidecar doctor \
         test test-unit test-integration test-contract test-e2e \
         lint typecheck check
 
@@ -119,6 +119,15 @@ clean:
 	rm -rf ./frontend/build
 	rm -f $(FRONTEND_STAMP) gowerui
 	@echo "Build artifacts cleaned."
+
+## DIAGNÓSTICO ##
+
+# Smoke test con el layout real de la release: el sidecar se copia junto al
+# binario (como en el tar portable) y se ejecuta el autodiagnóstico, que no
+# inicializa GTK.
+doctor: build $(SIDECAR_BIN)
+	install -m 0755 $(SIDECAR_BIN) build/bin/$(GOWER_ASSET)
+	./build/bin/gowerui --doctor
 
 ## SIDECAR ##
 

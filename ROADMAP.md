@@ -52,9 +52,17 @@ Este documento describe los pasos necesarios y las características planificadas
 
 ## 📌 Deuda técnica conocida
 - [ ] **`os.MkdirAll` con el error ignorado** en `GetAppContext`: la función sí devuelve `error`, pero descarta el de `MkdirAll` y devolvería rutas que no existen.
-- [ ] **`OpenPath` sin `Wait()`**: deja procesos zombis acumulados.
+- [x] **`OpenPath` sin `Wait()`**: dejaba procesos zombis acumulados. Ahora `openWithSystemHandler` recolecta el hijo en una goroutine.
 - [ ] **`CheckBattery` en Windows usa `Get-WmiObject`**, obsoleto y ausente en Windows 11 recientes. `Get-CimInstance` es el sustituto.
 - [ ] **`Sh -c` retirado sin prueba manual**: hay tests de regresión, pero conviene aplicar un wallpaper en Linux y arrancar el daemon antes de la próxima release.
 - [ ] **Targets `docker-*` del `Makefile`**: son placeholders de la era Tauri y no están implementados.
 - [ ] **`.devcontainer`**: la imagen de Wails está actualizada, pero no se ha validado un `build` completo dentro del contenedor.
 - [ ] **Wails CLI local (v2.13.0) por delante de `go.mod` (v2.12.0)**: un `wails build` a pelo puede bumpear las dependencias sin avisar. Decidir si se sube a propósito o se pinea el CLI.
+
+## 🧱 Fase 6: Empaque y robustez
+- [x] **Diagnóstico**: log a fichero con rotación (`~/.local/state/gowerui/gowerui.log`), enlace **Open logs** en Ajustes y modos `--version`/`--doctor`/`--help` que se atienden antes de GTK. `--doctor` valida sidecar, versión contra el pin y permisos, y el workflow lo ejecuta sobre el bundle empaquetado.
+- [x] **Blindar arranque y tray**: `HideWindowOnClose` dejaba la app viva sin ventana cuando el icono no era visible (GNOME sin extensión, DBus caído). Ahora `OnBeforeClose`/`CloseApp` consultan `trayState` y solo ocultan si el tray confirmó `onReady`; si `systray.Run` termina o entra en panic, se muestra la ventana; `recover` evita que un panic mate el proceso en silencio; `SingleInstanceLock` permite recuperar una instancia oculta relanzando la app. `wails.Run` con error sale con código 1.
+- [ ] **Escritura atómica de `settings.json`**: un corte a mitad de `os.WriteFile` corrompe el fichero y `loadSettings` lo descarta en silencio.
+- [ ] **Acotar `/local-asset/`**: hoy sirve cualquier ruta absoluta del disco a la webview; debería limitarse a las raíces que se llegan a pintar.
+- [ ] **Timeout en comandos background**: un `gower` colgado no tiene cancelación ni límite de concurrencia.
+- [ ] **Refactor del frontend**: `+page.svelte` (1445 líneas) y `SettingsPanel` (1124) concentran estado y lógica; extraerlos a módulos testeables antes de añadir features.

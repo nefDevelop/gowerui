@@ -37,7 +37,7 @@ frontend, en `localStorage` (tema e idioma).
 
 ## 2. Capas
 
-### 2.1 Backend (`app.go`, `main.go`)
+### 2.1 Backend (`app.go`, `main.go`, `logging.go`, `diagnostics.go`)
 
 Un único struct `App` concentration de los bindings. Todo lo expuesto al
 frontend son sus métodos públicos; los no exportados son internos.
@@ -50,10 +50,12 @@ frontend son sus métodos públicos; los no exportados son internos.
 | `SetCustomGowerPath(path)` | Fija y **persiste** la ruta del binario | Cadena vacía = volver al autodescubrimiento. Valida que exista y sea un fichero. Devuelve error si no se puede guardar |
 | `CheckBattery()` | ¿Hay batería? | Linux: lee `/sys/class/power_supply`. Windows: PowerShell `Win32_Battery`. Otros: `true` |
 | `CheckFileExists(path)` | Existencia de fichero | Nunca devuelve error, solo bool |
-| `OpenPath(path)` | Abre fichero/URL con el handler del sistema | `xdg-open` / `open` / `explorer` |
+| `OpenPath(path)` | Abre fichero/URL con el handler del sistema | `xdg-open` / `open` / `explorer`. Recolecta el hijo en una goroutine (sin zombis) |
+| `GetLogPath()` | Ruta del log de la app | Cadena vacía si no se puede determinar |
+| `OpenLogFile()` | Abre el log con el handler del sistema | Lo crea vacío si aún no existe; es el enlace **Open logs** de Ajustes |
 | `PickFile(title)` | Diálogo para elegir el ejecutable `gower` | El título lo pasa el caller: los diálogos nativos no pasan por el i18n del frontend. Requiere contexto de Wails |
 | `PickDirectory(title)` | Diálogo para elegir carpeta de wallpapers | Igual que `PickFile` con el título |
-| `CloseApp()` | Oculta la ventana (no cierra la app) | Requiere contexto de Wails |
+| `CloseApp()` | Oculta la ventana si el tray puede recuperarla; si no, cierra | Ver 2.5. Requiere contexto de Wails |
 
 ### 2.1.1 Configuración propia
 
@@ -189,6 +191,35 @@ locales se sirven a través del `AssetServer.Handler` de Wails
 El handler hace `PathUnescape`, `filepath.Clean` y fuerza ruta absoluta en
 Linux antes de servir el fichero.
 
+### 2.5 Ciclo de vida de la ventana y el tray
+
+La app vive en la bandeja: cerrar la ventana la oculta y el icono permite
+recuperarla. Eso solo es seguro si **el icono existe de verdad**, y en Linux
+depende del escritorio (StatusNotifier/AppIndicator; GNOME sin extensión no lo
+muestra). Por eso `HideWindowOnClose` ya no se fija en las opciones de Wails: la
+decisión se toma en `OnBeforeClose` consultando `trayState`.
+
+| Situación | Cerrar la ventana | `CloseApp()` (botón de la UI) |
+|---|---|---|
+| Tray listo (`onReady` ejecutado) | Oculta y no cierra | Oculta |
+| Tray no listo, caído o nunca arrancado | Cierra la app | Cierra la app |
+| Cierre pedido (menú Salir) | Cierra la app | — |
+
+Reglas del estado (`tray.go`):
+
+- `markStarted` lo pone la goroutine al entrar en `systray.Run`; `markReady` solo
+  desde `onReady`. Nunca se asume que el tray está listo por haberlo arrancado.
+- Si `systray.Run` termina o entra en panic, `markExited` desactiva el ocultar y
+  se **muestra la ventana** si la app no está cerrando: una ventana oculta sin
+  icono es irrecuperable.
+- `markQuitting` distingue el cierre pedido del fallo del tray. Es imprescindible
+  porque `wailsRuntime.Quit` pasa por `OnBeforeClose`: sin la marca, el propio
+  "Salir" del menú volvería a ocultar la ventana en vez de cerrar.
+- `SingleInstanceLock` (`UniqueId: "gowerui"`) hace que relanzar la app muestre
+  la instancia existente. Es la vía de escape si el icono es invisible pero el
+  tray se declaró listo (limitación de la librería: en Linux `onReady` se llama
+  antes de exportar el icono por DBus).
+
 ## 3. Build y empaquetado
 
 ### Requisitos
@@ -216,6 +247,44 @@ make clean          # borra build/ y frontend/build/
 > `//go:embed all:frontend/build` de `main.go:24` hace que `go build`,
 > `go vet` y `go test` fallen si el directorio no existe. Por eso los targets
 > del `Makefile` declaran dependencia de `frontend/build/index.html`.
+
+### Diagnóstico en runtime
+
+La app **no escribe solo en stdout**: lanzada desde el menú de aplicaciones ese
+stream se pierde, así que todos los mensajes pasan por `log.Printf` y acaban en
+un fichero por usuario.
+
+| Plataforma | Ruta del log |
+|---|---|
+| Linux | `$XDG_STATE_HOME/gowerui/gowerui.log` (`~/.local/state/...` por defecto) |
+| Windows | `%LOCALAPPDATA%\gowerui\logs\gowerui.log` |
+| macOS | `~/Library/Logs/gowerui/gowerui.log` |
+
+Al superar 1 MiB se rota a `.log.1` (solo se conserva una generación). En
+Ajustes hay un enlace **Open logs** (`OpenLogFile`) que lo abre con el visor del
+sistema, sin que el usuario tenga que buscar la ruta.
+
+### Modos sin interfaz
+
+```bash
+gowerui --version   # versión inyectada con -ldflags
+gowerui --doctor    # sidecar, versión, config y log; sale sin abrir GTK
+gowerui --help
+```
+
+`--doctor` se atiende **antes** de `wails.Run`, así que funciona sin display y
+se puede usar como smoke test de un bundle recién empaquetado (`make doctor`, y
+el paso `smoke test (linux bundle)` del workflow). Comprueba:
+
+- el pin embebido (`.gower-version`) y la ruta resuelta del sidecar;
+- que `gower --version` se pueda ejecutar (un sidecar de otra libc falla aquí)
+  y que la versión reportada coincida con el pin (tolera sufijos como
+  `-alpha`);
+- que el directorio de `settings.json` y el log sean escribibles.
+
+Devuelve 0 solo si el sidecar se puede usar y la versión coincide; cualquier
+otra cosa devuelve 1 y explica el motivo. Un fallo de arranque de Wails también
+termina con código 1 (`main.go`).
 
 ### Versionado
 
@@ -276,6 +345,11 @@ Para comprobar que el pin apunta a una release real: `make verify-sidecar`.
 El job `test` corre siempre antes de publicar un release: no se publica un binario
 cuyo test haya fallado.
 
+Antes de subir los assets, `build-release` extrae el bundle de Linux y ejecuta
+`./gowerui-linux-portable/gowerui --doctor`. Es el único paso que **ejecuta** el
+artefacto empaquetado: valida que el sidecar viaja al lado del binario y que su
+versión es la del pin.
+
 Además, `.github/workflows/bump-sidecar.yml` recibe un `repository_dispatch`
 (`gower-release`) que gower envía al publicar un tag, y abre un PR que solo
 bumpea `.gower-version`. Requiere el secreto `GOWER_DISPATCH_TOKEN` en gower
@@ -298,6 +372,9 @@ make check             # lint + typecheck + test
 - **Backend**: `app_test.go`, `package main`, tabla de tests con la stdlib
   (sin testify). Los helpers `fakeGower` (script shell falso en `t.TempDir()`)
   e `isolateHostWithoutGower` aíslan el host del ejecutable real.
+- **Diagnóstico** (`diagnostics_test.go`): rutas de log por plataforma,
+  rotación por tamaño, `versionsMatch`, los modos de `handleCLI` y `runDoctor`
+  con sidecar sano, sin sidecar y con versión distinta.
 - **Contrato** (`contract_test.go`): `TestGowerContractFile` comprueba que el
   contrato del tag pineado (`GOWER_CONTRACT`) sigue declarando las claves que
   consume la UI; `TestGowerContractCommands` ejecuta el binario pineado

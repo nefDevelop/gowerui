@@ -27,7 +27,13 @@ la interfaz SvelteKit.
 .
 ├── main.go                  # Arranque de Wails, ventana, tray, asset handler /local-asset
 ├── app.go                   # Bindings expuestos al frontend (App)
+├── logging.go               # Log a fichero del usuario, con rotación por tamaño
+├── diagnostics.go           # --version/--doctor/--help (sin GTK) y pin del sidecar embebido
+├── tray.go                  # Icono de bandeja y decisión de ocultar/cerrar la ventana
 ├── app_test.go              # Tests unitarios del backend
+├── diagnostics_test.go      # Tests del log, la rotación y --doctor
+├── tray_test.go             # Tests de las transiciones de trayState
+├── contract_test.go         # Verificación del contrato contra el binario pineado
 ├── Makefile                 # Orquestador de build y tests
 ├── wails.json               # Config de Wails (nombre, versión, flags)
 ├── frontend/
@@ -60,6 +66,7 @@ cambio de UI, un fix puntual o configuración.
 | `make check` | `lint` + `typecheck` + `test` |
 | `make build` | `wails build -tags webkit2_41` |
 | `make install` | `build` + descarga el sidecar del pin (con checksum) y lo instala en `~/.local` (solo Linux) |
+| `make doctor` | `build` + `gowerui --doctor`: smoke test del bundle sin display |
 | `make dev` | `wails dev` |
 
 ## Gotchas críticos
@@ -84,13 +91,14 @@ cambio de UI, un fix puntual o configuración.
    `TestRunGowerCommandDoesNotInterpretShellMetacharacters`; si la rompes, ese
    test crea ficheros marcadores y falla.
 
-4. **El sidecar NO va embebido.** Los únicos `//go:embed` son `frontend/build` y
-   el favicon. `gower` viaja como **fichero hermano** del ejecutable en las
-   releases portables. `lookupGowerPath` (app.go) busca, en orden: ruta de
-   Ajustes → junto al ejecutable (`gower` o `bin/gower`) → `$PATH` → rutas de
-   instalación habituales. Si cambias el layout del bundle, actualiza
-   `lookupGowerPath` **y** el paso de empaquetado del workflow, que deben
-   seguir coincidiendo.
+4. **El sidecar NO va embebido.** Los únicos `//go:embed` son `frontend/build`,
+   el favicon y `.gower-version` (este último solo para que `--doctor` pueda
+   comparar la versión esperada). `gower` viaja como **fichero hermano** del
+   ejecutable en las releases portables. `lookupGowerPath` (app.go) busca, en
+   orden: ruta de Ajustes → junto al ejecutable (`gower` o `bin/gower`) →
+   `$PATH` → rutas de instalación habituales. Si cambias el layout del bundle,
+   actualiza `lookupGowerPath` **y** el paso de empaquetado del workflow, que
+   deben seguir coincidiendo.
    La versión del sidecar que se empaqueta está fijada en `.gower-version` (no
    se usa `releases/latest`). Tras cambiar el pin, regenera el JSON con
    `make sidecar-info` y comprueba la release con `make verify-sidecar`.
@@ -148,6 +156,32 @@ cambio de UI, un fix puntual o configuración.
     para los wallpapers de la colección local, que ya tienen id en el feed.
     `favorites add` y `blacklist add` solo aceptan id: favoritear o bloquear
     desde Buscar sigue fallando.
+
+13. **Los fallos se registran en fichero, no solo en stdout.** `setupLogging`
+    (`logging.go`) escribe en `$XDG_STATE_HOME/gowerui/gowerui.log`
+    (`~/.local/state/...` por defecto; `%LOCALAPPDATA%` en Windows;
+    `~/Library/Logs` en macOS) y rota a `.1` al pasar de 1 MiB. Lanzada desde
+    el menú, nadie ve el stdout: usa `log.Printf`, no `fmt.Printf`, para todo
+    lo que quieras poder diagnosticar después. El usuario puede abrir el
+    fichero desde Ajustes (`OpenLogFile`).
+    `gowerui --doctor` y `--version` se atienden **antes** de inicializar GTK,
+    así que funcionan sin display y sirven de smoke test del bundle en CI. El
+    código de salida de `--doctor` es 0 solo si el sidecar se resuelve y su
+    versión coincide con el pin embebido; no lo conviertas en un no-op.
+
+14. **Ocultar la ventana al cerrar depende del tray, en runtime.** No vuelvas a
+    poner `HideWindowOnClose: true` en `main.go`: con el icono invisible (GNOME
+    sin extensión, DBus caído) la app quedaba viva sin ventana. La decisión vive
+    en `OnBeforeClose`/`CloseApp` y consulta `trayState` (ver DOCUMENTATION 2.5).
+    `wailsRuntime.Quit` pasa por `OnBeforeClose`, así que **todo** cierre pedido
+    debe llamar antes a `markQuitting()` o el "Salir" del tray solo ocultará la
+    ventana. `SingleInstanceLock` es la vía de escape si el tray dice estar
+    listo pero no se ve: relanzar muestra la instancia existente.
+
+15. **No hay que añadir un `Wait()` síncrono al abrir rutas.** `OpenPath` y
+    `OpenLogFile` comparten `openWithSystemHandler`, que lanza el handler y
+    recolecta el hijo en una goroutine: `xdg-open` puede tardar segundos y la
+    UI no debe esperar, pero tampoco debe dejar zombis.
 
 ## Convenciones
 

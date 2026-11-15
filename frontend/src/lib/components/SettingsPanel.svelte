@@ -7,6 +7,8 @@
         setCustomGowerPath,
         pickGowerBinary,
         pickDirectory,
+        openLogFile,
+        getLogPath,
     } from "$lib/api";
     import { t, locale } from "$lib/stores/i18n";
     import { theme } from "$lib/stores/theme";
@@ -31,11 +33,18 @@
     let gowerStatus = $state(null);
     let savingGowerPath = $state(false);
     let appVersion = $state("");
+    /** Ruta del log; se muestra como tooltip del enlace "Open logs". */
+    let logPath = $state("");
 
     onMount(async () => {
         hasBattery = await checkBattery();
         gowerStatus = await getGowerStatus();
         appVersion = await getAppVersion();
+        try {
+            logPath = await getLogPath();
+        } catch (e) {
+            console.error("[SETTINGS] Failed to resolve the log path:", e);
+        }
     });
 
     /** Refresca el estado del sidecar, p. ej. tras cambiar la ruta. */
@@ -84,6 +93,21 @@
             notifications.add($t("settings.gower_path_invalid"), "error");
         } finally {
             savingGowerPath = false;
+        }
+    }
+
+    /**
+     * Abre el log de la app con el visor del sistema. Es la vía para que un
+     * usuario que lanzó la app desde el menú pueda adjuntar el diagnóstico.
+     */
+    async function showLogs() {
+        try {
+            await openLogFile();
+        } catch (e) {
+            notifications.add(
+                $t("settings.logs_error", { error: String(e) }),
+                "error",
+            );
         }
     }
 
@@ -453,7 +477,14 @@
             <p class="subtext">{$t("settings.providers.subtitle")}</p>
         </button>
 
-        <div class="version">{$t("app.version")} {appVersion}</div>
+        <div class="version">
+            <span class="version-text"
+                >{$t("app.version")} {appVersion}</span
+            >
+            <button class="logs-btn" title={logPath} onclick={showLogs}>
+                {$t("settings.logs_open")}
+            </button>
+        </div>
     {:else}
         <!-- PROVIDERS SUB-VIEW -->
         <div class="section">
@@ -869,9 +900,27 @@
     }
     .version {
         text-align: center;
-        opacity: 0.3;
         font-size: 0.7rem;
         margin-top: auto;
+    }
+
+    .version-text {
+        opacity: 0.3;
+    }
+
+    .logs-btn {
+        background: none;
+        border: none;
+        color: inherit;
+        font: inherit;
+        text-decoration: underline;
+        cursor: pointer;
+        padding: 0 0 0 6px;
+        opacity: 0.45;
+    }
+
+    .logs-btn:hover {
+        opacity: 0.9;
     }
 
     .gower-path-status {
