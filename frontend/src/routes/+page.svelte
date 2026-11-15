@@ -1,5 +1,5 @@
 <script>
-    import { onMount, tick, untrack } from "svelte";
+    import { onDestroy, onMount, tick, untrack } from "svelte";
     import { writable } from "svelte/store";
     import { fade } from "svelte/transition";
     import { t } from "$lib/stores/i18n";
@@ -15,6 +15,8 @@
     import WallpaperGrid from "$lib/components/WallpaperGrid.svelte";
     import { notifications as notificationsStore } from "$lib/stores/notifications";
     import { createFeedStore, createFavoritesStore } from "$lib/stores/wallpapers";
+    import { createSearchSession } from "$lib/stores/search-session";
+    import { createDialogState } from "$lib/stores/dialogs";
 
     // El color es compartido: el mismo filtro se aplica al feed y a favoritos.
     const selectedColor = writable("");
@@ -30,40 +32,26 @@
     /** @type {{cache_path: string, config_path: string, user_home: string} | null} */
     let appContext = $state(null);
 
-    // Search State (Persisted)
-    /** @type {any[]} */
-    let searchResults = $state([]);
-    let searchQuery = $state("");
-    let searchPage = $state(1);
-    let selectedProvider = $state("wallhaven");
-    let lastSearchTime = $state(0);
+    // Búsqueda persistida: se restaura en el arranque y caduca a los 15 min.
+    // El guardado automático vive en el store.
+    const search = createSearchSession();
+    const {
+        results: searchResults,
+        query: searchQuery,
+        page: searchPage,
+        provider: selectedProvider,
+        lastSearchTime,
+    } = search;
 
-    // PERSISTENCE: Save search to localStorage
-    $effect(() => {
-        if (lastSearchTime > 0) {
-            localStorage.setItem(
-                "gower_search_data",
-                JSON.stringify({
-                    searchResults,
-                    searchQuery,
-                    searchPage,
-                    selectedProvider,
-                    lastSearchTime,
-                }),
-            );
-        }
-    });
-
-    // Modal & Context Menu State
-    /** @type {any} */
-    let previewItem = $state(null);
-    let previewOpen = $state(false);
-    /** @type {any} */
-    let contextMenu = $state({ open: false, x: 0, y: 0, item: null });
-    
-    // Dialog State
-    let deleteDialogOpen = $state(false);
-    let itemToDelete = $state(null);
+    // Modal, menú contextual y diálogo de borrado.
+    const dialogs = createDialogState();
+    const {
+        previewItem,
+        previewOpen,
+        contextMenu,
+        deleteOpen: deleteDialogOpen,
+        itemToDelete,
+    } = dialogs;
 
     const sortOptions = [
         { value: "Smart", label: "sort.smart" },
@@ -129,7 +117,7 @@
                 wallpaperTarget(item, currentTab === "search"),
                 monitorId,
             );
-            contextMenu.open = false;
+            dialogs.closeContextMenu();
             // Refreshed via background event
         } catch (e) { // Keep error for user feedback
             notificationsStore.add("Error al establecer wallpaper", "error");
@@ -155,7 +143,9 @@
             feed.remove(snap.id);
             favorites.remove(snap.id);
             currentWallpapers = currentWallpapers.filter((i) => i.id !== snap.id);
-            if (searchResults) searchResults = searchResults.filter((i) => i.id !== snap.id);
+            search.results.update((items) =>
+                items.filter((i) => i.id !== snap.id),
+            );
             
             notificationsStore.add("Imagen añadida a la lista negra", "success");
 
@@ -207,7 +197,7 @@
             for (const m of monitors) {
                 await gower.setWallpaper(target, m.ID);
             }
-            contextMenu.open = false; // Close context menu after action
+            dialogs.closeContextMenu(); // Close context menu after action
         } catch (e) {
             console.error(e);
         } finally {
@@ -222,7 +212,7 @@
         if (!item || !item.url) return;
         try {
             await gower.openPath(item.url);
-            contextMenu.open = false; // Close context menu after action
+            dialogs.closeContextMenu(); // Close context menu after action
         } catch (e) {
             console.error(e);
         }
@@ -255,7 +245,7 @@
                 // Remote URL
                 notificationsStore.add("Abriendo en el navegador...", "info");
             }
-            contextMenu.open = false;
+            dialogs.closeContextMenu();
         } catch (e) {
             notificationsStore.add("Error al intentar abrir", "error"); // Keep for user feedback
             console.error(e);
@@ -281,8 +271,10 @@
      * @param {any} item
      */
     async function handlePreview(item) {
-        previewItem = { ...item, isDownloaded: await checkItemDownloadedStatus(item) };
-        previewOpen = true;
+        dialogs.openPreview({
+            ...item,
+            isDownloaded: await checkItemDownloadedStatus(item),
+        });
     }
 
     /**
@@ -291,20 +283,11 @@
      * @param {number} y
      */
     function handleContextMenu(item, x, y) {
-        // Adjust menu position if it goes off screen
-        const menuWidth = 160;
-        const menuHeight = 120;
-        let posX = x;
-        let posY = y;
-
-        if (x + menuWidth > 480) posX = x - menuWidth;
-        if (y + menuHeight > 800) posY = y - menuHeight;
-
-        contextMenu = { open: true, x: posX, y: posY, item };
+        dialogs.openContextMenu(item, x, y);
     }
 
     function closeContextMenu() {
-        contextMenu.open = false;
+        dialogs.closeContextMenu();
     }
 
     // --- UTILS ---
@@ -396,8 +379,7 @@
      * @param {any} item
      */
     function handleDeleteRequest(item) {
-        itemToDelete = item;
-        deleteDialogOpen = true;
+        dialogs.requestDelete(item);
     }
 
     /**
@@ -537,14 +519,7 @@
             }
 
             // Check search expiration (15 minutes across sessions)
-            const now = Date.now();
-            if (lastSearchTime > 0 && now - lastSearchTime > 900000) {
-                searchResults = [];
-                searchQuery = "";
-                searchPage = 1;
-                lastSearchTime = 0;
-                localStorage.removeItem("gower_search_data");
-            }
+            search.expire();
         });
     });
 
@@ -556,24 +531,7 @@
             console.log("[init] Iniciando carga de la aplicación...");
             try {
                 // Restore search from localStorage
-                const saved = localStorage.getItem("gower_search_data");
-                if (saved) {
-                    const data = JSON.parse(saved);
-                    const now = Date.now();
-                    if (now - data.lastSearchTime < 900000) {
-                        // Los resultados guardados antes de este cambio no
-                        // llevan `origin`: sin él se aplicarían por id y gower
-                        // respondería "wallpaper not found".
-                        searchResults = (data.searchResults || []).map((item) => ({
-                            ...item,
-                            origin: item.origin || "search",
-                        }));
-                        searchQuery = data.searchQuery || "";
-                        searchPage = data.searchPage || 1;
-                        selectedProvider = data.selectedProvider || "wallhaven";
-                        lastSearchTime = data.lastSearchTime;
-                    }
-                }
+                search.restore();
 
                 appContext = await getAppContext();
                 console.log("[init] AppContext obtenido:", $state.snapshot(appContext));
@@ -679,6 +637,9 @@
         };
     });
 
+    // Las suscripciones de guardado del store no deben sobrevivir a la página.
+    onDestroy(() => search.dispose());
+
     function closeApp() {
         // @ts-ignore
         window.go.main.App.CloseApp();
@@ -777,11 +738,11 @@
                     {status}
                     {appContext}
                     favoritesModel={$favorites.items}
-                    bind:searchResults
-                    bind:searchQuery
-                    bind:searchPage
-                    bind:selectedProvider
-                    bind:lastSearchTime
+                    bind:searchResults={$searchResults}
+                    bind:searchQuery={$searchQuery}
+                    bind:searchPage={$searchPage}
+                    bind:selectedProvider={$selectedProvider}
+                    bind:lastSearchTime={$lastSearchTime}
                     on:preview={(e) => handlePreview(e.detail)}
                     on:contextmenu={(e) =>
                         handleContextMenu(
@@ -845,18 +806,18 @@
     </div>
 
     <DeleteDialog
-        open={deleteDialogOpen}
-        item={itemToDelete}
-        on:close={() => (deleteDialogOpen = false)}
+        open={$deleteDialogOpen}
+        item={$itemToDelete}
+        on:close={() => dialogs.closeDelete()}
         on:confirm={(e) => confirmDelete(e.detail)}
     />
 
     <!-- Preview Modal -->
-    {#if previewOpen && previewItem}
+    {#if $previewOpen && $previewItem}
         <div
             class="modal-backdrop"
-            onclick={() => (previewOpen = false)}
-            onkeydown={(e) => e.key === "Escape" && (previewOpen = false)}
+            onclick={() => dialogs.closePreview()}
+            onkeydown={(e) => e.key === "Escape" && dialogs.closePreview()}
             role="presentation"
         >
             <div
@@ -869,18 +830,18 @@
             >
                 <button
                     class="close-preview-btn"
-                    onclick={() => (previewOpen = false)}
+                    onclick={() => dialogs.closePreview()}
                 >
                     <span class="material-icons">close</span>
                 </button>
-                <img src={previewItem.thumbnail} alt={previewItem.id} />
+                <img src={$previewItem.thumbnail} alt={$previewItem.id} />
                 <div class="preview-info">
                     <div class="preview-header">
-                        <h3>ID: {previewItem.id}</h3>
+                        <h3>ID: {$previewItem.id}</h3>
                         <p class="provider">
-                            Provider: {previewItem.provider &&
-                            previewItem.provider.toLowerCase() !== "local"
-                                ? previewItem.provider
+                            Provider: {$previewItem.provider &&
+                            $previewItem.provider.toLowerCase() !== "local"
+                                ? $previewItem.provider
                                 : "Local"}
                         </p>
                     </div>
@@ -891,8 +852,8 @@
                             <button
                                 class="monitor-chip all"
                                 onclick={() => {
-                                    setOnAllMonitors(previewItem);
-                                    previewOpen = false;
+                                    setOnAllMonitors($previewItem);
+                                    dialogs.closePreview();
                                 }}
                             >
                                 <span class="material-icons"
@@ -904,8 +865,8 @@
                                 <button
                                     class="monitor-chip"
                                     onclick={() => {
-                                        setWallpaper(previewItem, m.ID);
-                                        previewOpen = false;
+                                        setWallpaper($previewItem, m.ID);
+                                        dialogs.closePreview();
                                     }}
                                 >
                                     <span class="material-icons"
@@ -920,8 +881,8 @@
                     <div class="quick-actions">
                         <button
                             onclick={() => {
-                                handleBlock(previewItem);
-                                previewOpen = false;
+                                handleBlock($previewItem);
+                                dialogs.closePreview();
                             }}
                             title="Añadir a lista negra"
                             class="action-btn block"
@@ -930,21 +891,21 @@
                         </button>
 
                         <button
-                            onclick={() => toggleFavorite(previewItem)}
+                            onclick={() => toggleFavorite($previewItem)}
                             title="Favoritos"
                             class="action-btn favorite"
                         >
                             <span
                                 class="material-icons"
-                                class:active={$favorites.items.some((f) => normalizeId(f.id) === normalizeId(previewItem.id))}
+                                class:active={$favorites.items.some((f) => normalizeId(f.id) === normalizeId($previewItem.id))}
                             >
-                                {$favorites.items.some((f) => normalizeId(f.id) === normalizeId(previewItem.id))
+                                {$favorites.items.some((f) => normalizeId(f.id) === normalizeId($previewItem.id))
                                     ? "favorite" : "favorite_border"}
                             </span>
                         </button>
-                        {#if !previewItem.isDownloaded}
+                        {#if !$previewItem.isDownloaded}
                             <button
-                                onclick={() => handleDownload(previewItem)}
+                                onclick={() => handleDownload($previewItem)}
                                 title="Descargar"
                                 class="action-btn"
                             >
@@ -952,11 +913,11 @@
                             </button>
                         {/if}
 
-                        {#if !previewItem.provider || previewItem.provider.toLowerCase() === "local"}
+                        {#if !$previewItem.provider || $previewItem.provider.toLowerCase() === "local"}
                             <button
                                 onclick={() => {
-                                    handleDeleteRequest(previewItem);
-                                    previewOpen = false;
+                                    handleDeleteRequest($previewItem);
+                                    dialogs.closePreview();
                                 }}
                                 title="Eliminar"
                                 class="action-btn delete"
@@ -971,7 +932,7 @@
     {/if}
 
     <!-- Context Menu -->
-    {#if contextMenu.open}
+    {#if $contextMenu.open}
         <div
             class="context-menu-backdrop"
             onclick={closeContextMenu}
@@ -980,17 +941,17 @@
         >
             <div
                 class="context-menu glass-card"
-                style="top: {contextMenu.y}px; left: {contextMenu.x}px;"
+                style="top: {$contextMenu.y}px; left: {$contextMenu.x}px;"
                 onclick={(e) => e.stopPropagation()}
                 onkeydown={(e) => e.stopPropagation()}
                 role="menu"
                 tabindex="-1"
             >
-                <button onclick={() => openUrl(contextMenu.item)}>
+                <button onclick={() => openUrl($contextMenu.item)}>
                     <span class="material-icons">link</span>
                     Abrir URL
                 </button>
-                <button onclick={() => openInSystem(contextMenu.item)}>
+                <button onclick={() => openInSystem($contextMenu.item)}>
                     <span class="material-icons">folder_open</span>
                     Ver en sistema
                 </button>

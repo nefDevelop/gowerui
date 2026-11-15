@@ -118,7 +118,9 @@ frontend/src/
 │   │   ├── i18n.js               # Locale + store derivado `t(key, vars)`
 │   │   ├── notifications.js      # Cola de toasts con auto-eliminación
 │   │   ├── wallpaper-list.js     # Lista paginada genérica (items, página, sort, color)
-│   │   └── wallpapers.js         # createFeedStore / createFavoritesStore
+│   │   ├── wallpapers.js         # createFeedStore / createFavoritesStore
+│   │   ├── search-session.js     # Búsqueda + persistencia y caducidad (15 min)
+│   │   └── dialogs.js            # Preview, menú contextual y diálogo de borrado
 │   ├── i18n/locales.js           # Diccionario de traducciones
 │   └── components/               # 9 componentes de presentación
 ├── routes/
@@ -151,7 +153,20 @@ El feed y los favoritos viven en `lib/stores/`, no en `+page.svelte`:
   la página) tenga su propio estado.
 
 La página se queda con lo que es puramente suyo: pestaña activa, wallpapers
-actuales, monitores, búsqueda, diálogos y configuración.
+actuales, monitores y configuración.
+
+La búsqueda y los diálogos también viven en stores:
+
+- `search-session.js` guarda resultados, query, página, proveedor y
+  `lastSearchTime`, y se suscribe a sí mismo para persistirlos en
+  `gower_search_data` (solo si hubo búsqueda). `restore()` normaliza el `origin`
+  que faltaba en datos antiguos y descarta lo caducado; `expire()` limpia el
+  estado cuando pasan 15 minutos. Reloj y `Storage` se inyectan, así que los
+  tests no dependen del navegador.
+- `dialogs.js` agrupa preview, menú contextual y confirmación de borrado.
+  `positionContextMenu()` es una función pura con los mismos límites que usaba
+  la página (480x800, menú 160x120). El cierre del menú usa `update` y no una
+  mutación: un store no notifica cambios profundos.
 
 #### `extractJson`
 
@@ -416,8 +431,9 @@ make check             # lint + typecheck + test
   que `make test` sigue corriendo sin el binario. El CI los cablea en el job
   `test` descargando el pin.
 - **Frontend**: Vitest + `jsdom`. `frontend/src/test/setup.js` mockea
-  `localStorage` y `matchMedia`. Cobertura actual: `api.js`, y los stores
-  `theme`, `i18n` y `notifications`.
+  `localStorage` y `matchMedia`. Cobertura actual: `api.js` y los stores
+  `theme`, `i18n`, `notifications`, `wallpaper-list`, `wallpapers`,
+  `search-session` y `dialogs`.
 - **E2E**: el script `npm run test:e2e` existe pero **no hay specs ni
   `playwright.config.js`**. `make test` lo excluye a propósito.
 
