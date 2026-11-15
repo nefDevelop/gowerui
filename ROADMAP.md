@@ -66,7 +66,7 @@ Este documento describe los pasos necesarios y las características planificadas
 - [x] **Acotar `/local-asset/`**: `canServeLocalAsset` exige fichero regular y extensión de imagen/vídeo. Antes servía cualquier ruta absoluta del disco a la webview.
 - [x] **Timeout en comandos background**: `backgroundCommandTimeout` (10 min) mata el proceso y emite el fallo a la UI. Sigue sin haber límite de concurrencia: se pueden lanzar varios `set` a la vez.
 - [x] **Red de seguridad de la UI**: `<svelte:boundary>` en `+layout.svelte` con mensaje, reintento y apertura del log. Antes un throw en cualquier componente dejaba la ventana en blanco, sin explicación ni salida.
-- [ ] **Refactor del frontend por fases**: `+page.svelte` y `SettingsPanel` (1124 líneas) concentran estado y lógica. Sin cambios de comportamiento entre fases, y `svelte-check` verde en cada una.
+- [x] **Refactor del frontend por fases**: `+page.svelte` y `SettingsPanel` (1124 líneas) concentran estado y lógica. Sin cambios de comportamiento entre fases, y `svelte-check` verde en cada una.
   - [x] (1) **Feed y favoritos** a `lib/stores/` (`wallpaper-list.js` genérico + `wallpapers.js` con las dos factorías) y tests en Vitest. La página se queda con pestaña, wallpapers actuales, búsqueda, diálogos y config.
   - [x] (2) **Búsqueda y diálogos** a stores: `search-session.js` (persistencia, normalización de `origin`, TTL de 15 min) y `dialogs.js` (preview, menú contextual con posicionamiento puro y borrado). Tests con reloj y storage inyectados.
-  - [ ] (3) Trocear `SettingsPanel` en providers, daemon y rutas/gower.
+  - [x] (3) **`SettingsPanel` troceado**: de 1124 a 98 líneas, con `SettingsDaemon`, `SettingsBehavior`, `SettingsPaths` y `SettingsProviders`. Los estilos compartidos pasan a `lib/styles/settings.css` (con scope no llegarían a los hijos). Smoke test de montaje y navegación a providers en Vitest.

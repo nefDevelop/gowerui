@@ -122,7 +122,7 @@ frontend/src/
 │   │   ├── search-session.js     # Búsqueda + persistencia y caducidad (15 min)
 │   │   └── dialogs.js            # Preview, menú contextual y diálogo de borrado
 │   ├── i18n/locales.js           # Diccionario de traducciones
-│   └── components/               # 9 componentes de presentación
+│   └── components/               # 12 componentes de presentación (SettingsPanel y sus partes)
 ├── routes/
 │   ├── +layout.svelte            # Monta ToastContainer y el tema inicial
 │   └── +page.svelte              # Pantalla principal (feed, favoritos, búsqueda)
@@ -154,6 +154,22 @@ El feed y los favoritos viven en `lib/stores/`, no en `+page.svelte`:
 
 La página se queda con lo que es puramente suyo: pestaña activa, wallpapers
 actuales, monitores y configuración.
+
+`SettingsPanel.svelte` es solo el armazón: monta los subcomponentes y les pasa
+`config`, `status` y una única `updateConfig`. Los subcomponentes avisan con
+callbacks (`onrefresh`, `onclose`), no con `createEventDispatcher`:
+
+| Componente | Contenido |
+|---|---|
+| `SettingsDaemon` | Estado del daemon, intervalo y auto-descarga |
+| `SettingsBehavior` | Tema, favoritos, energía y multi-monitor |
+| `SettingsPaths` | Binario de gower + general (idioma, carpeta y rutas) |
+| `SettingsProviders` | Lista, alta y borrado de proveedores |
+
+Los estilos viven en `src/lib/styles/settings.css`, importado por el panel.
+No pueden quedarse en `<style>` de `SettingsPanel` porque el CSS con scope no
+llega al DOM de los componentes hijos; todo va prefijado con `.settings-panel`
+para no filtrarse al resto de la app.
 
 La búsqueda y los diálogos también viven en stores:
 
