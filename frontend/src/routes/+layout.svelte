@@ -57,7 +57,7 @@
     height: 100%;
     padding: 32px 24px;
     overflow-y: auto;
-    color: var(--text);
+    color: var(--on-background);
   }
 
   .crash h2 {
@@ -75,7 +75,7 @@
     margin: 0;
     padding: 12px;
     border-radius: 8px;
-    background: rgba(0, 0, 0, 0.25);
+    background: var(--surface-container);
     font-size: 0.75rem;
     white-space: pre-wrap;
     word-break: break-word;
@@ -92,7 +92,7 @@
     border: none;
     border-radius: 8px;
     background: var(--primary);
-    color: var(--background);
+    color: var(--on-primary);
     font-size: 0.8rem;
     cursor: pointer;
   }
