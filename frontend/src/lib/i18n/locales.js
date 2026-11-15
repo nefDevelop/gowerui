@@ -2,6 +2,9 @@ export const dictionary = {
     es: {
         "app.version": "Versión",
         "app.title": "Gower GUI",
+        "app.crashed_title": "Algo se ha roto",
+        "app.crashed_hint": "La interfaz encontró un error inesperado. Puedes reintentar; si se repite, adjunta el registro al abrir un issue.",
+        "app.crashed_retry": "Reintentar",
         "settings.title": "Configuración",
         "settings.daemon": "Daemon",
         "settings.daemon.status": "Estado del servicio",
@@ -90,6 +93,9 @@ export const dictionary = {
     en: {
         "app.version": "Version",
         "app.title": "Gower GUI",
+        "app.crashed_title": "Something broke",
+        "app.crashed_hint": "The interface hit an unexpected error. You can retry; if it happens again, attach the log to your issue.",
+        "app.crashed_retry": "Retry",
         "settings.title": "Settings",
         "settings.daemon": "Daemon",
         "settings.daemon.status": "Service Status",

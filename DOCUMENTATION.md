@@ -130,6 +130,11 @@ componentes usa `gower.*` (los builders de comando) o los helpers
 (`mapThumbnails`, `normalizeId`). Si añades una capacidad del CLI, se añade un
 método al objeto `gower` de `api.js`, nunca una llamada directa al binding.
 
+`+layout.svelte` envuelve la página en un `<svelte:boundary>`: un throw en
+cualquier componente pinta una pantalla de error con el mensaje, un botón de
+reintento (`reset`) y el enlace **Open logs**, en vez de dejar la ventana en
+blanco.
+
 #### `extractJson`
 
 El CLI no siempre emite JSON puro: antepone líneas de log (`[DEBUG] ...`) y a
