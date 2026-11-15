@@ -12,9 +12,15 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+// backgroundCommandTimeout acota los comandos que no bloquean la UI. Es una
+// garantía contra procesos colgados, no un límite de experiencia: por eso es
+// holgado. Se declara var para que los tests puedan reducirlo.
+var backgroundCommandTimeout = 10 * time.Minute
 
 // emitFunc emite un evento de Wails hacia el frontend.
 type emitFunc func(eventName string, data ...interface{})
@@ -126,7 +132,51 @@ func (a *App) saveSettings() error {
 		return err
 	}
 
-	return os.WriteFile(path, data, 0o644)
+	return writeFileAtomic(path, data, 0o644)
+}
+
+// writeFileAtomic escribe data en path sin dejar nunca un fichero a medias: un
+// corte de luz a mitad de un os.WriteFile corrompe settings.json, y
+// loadSettings descarta un fichero corrupto, así que el usuario perdería su
+// configuración sin enterarse. El rename dentro del mismo directorio es
+// atómico en las plataformas que soporta la app.
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
+	if err != nil {
+		return err
+	}
+
+	tmpName := tmp.Name()
+	// Si algo falla antes del rename, no se deja basura en el directorio.
+	defer func() {
+		if tmpName != "" {
+			_ = os.Remove(tmpName)
+		}
+	}()
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	// CreateTemp crea con 0600; el fichero conserva los permisos del original.
+	if err := tmp.Chmod(perm); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	if err := os.Rename(tmpName, path); err != nil {
+		return err
+	}
+	tmpName = ""
+
+	return nil
 }
 
 type AppContext struct {
@@ -151,9 +201,13 @@ func (a *App) GetAppContext() (AppContext, error) {
 		cachePath = filepath.Join(home, ".cache", "gower")
 	}
 
-	// Ensure directories exist
-	os.MkdirAll(configPath, 0755)
-	os.MkdirAll(cachePath, 0755)
+	// Devolver rutas que no existen rompe las miniaturas y el arranque del
+	// daemon más adelante, así que el error se propaga en vez de ignorarse.
+	for _, dir := range []string{configPath, cachePath} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return AppContext{}, fmt.Errorf("could not create %s: %w", dir, err)
+		}
+	}
 
 	return AppContext{
 		CachePath:  cachePath,
@@ -184,7 +238,21 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 	// proceso, y gowerPath es absoluto salvo cuando el usuario configura uno
 	// relativo, en cuyo caso exec.Command lo resuelve igual vía PATH.
 	log.Printf("[BACKEND] Executing: %s %s", gowerPath, strings.Join(args, " "))
-	cmd := exec.Command(gowerPath, args...)
+
+	// Los comandos en background tienen un tope: un `gower` colgado no puede
+	// dejar una goroutine y un proceso vivos indefinidamente. No es un límite de
+	// UX, así que es generoso; los comandos en primer plano no lo llevan porque
+	// el usuario está esperando su resultado y puede cancelar la acción.
+	commandCtx := context.Background()
+	var cancel context.CancelFunc
+	if background {
+		commandCtx, cancel = context.WithTimeout(commandCtx, backgroundCommandTimeout)
+	} else {
+		commandCtx, cancel = context.WithCancel(commandCtx)
+		defer cancel()
+	}
+
+	cmd := exec.CommandContext(commandCtx, gowerPath, args...)
 	cmd.Env = os.Environ() // Ensure process environment is passed
 
 	if background {
@@ -195,18 +263,28 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 
 		err := cmd.Start()
 		if err != nil {
+			cancel()
 			log.Printf("[BACKEND] Error starting background command: %v", err)
 			return "", err
 		}
 		go func() {
+			// El contexto se libera aquí, no al volver de esta función: hacerlo
+			// antes mataría el comando recién lanzado.
+			defer cancel()
+
 			err := cmd.Wait()
 			if err != nil {
+				failure := summarizeGowerError(stderr.String())
+				if errors.Is(commandCtx.Err(), context.DeadlineExceeded) {
+					failure = fmt.Sprintf("gower %s timed out after %s", args[0], backgroundCommandTimeout)
+				}
+
 				log.Printf("[BACKEND] Background command failed: %v\n[GOWER ERROR] %s", err, stderr.String())
 				// El fallo viaja al frontend: sin esto el usuario veía cómo la
 				// acción no hacía nada y el motivo solo quedaba en stdout.
 				a.emit("gower-command-failed", backgroundCommandFailure{
 					Args:  args,
-					Error: summarizeGowerError(stderr.String()),
+					Error: failure,
 				})
 			} else {
 				log.Println("[BACKEND] Background command finished successfully")
@@ -431,7 +509,9 @@ func (a *App) CheckBattery() (bool, error) {
 		}
 		return false, nil
 	} else if runtime.GOOS == "windows" {
-		cmd := exec.Command("powershell", "-NoProfile", "-Command", "Get-WmiObject Win32_Battery | Measure-Object | Select-Object -ExpandProperty Count")
+		// Get-CimInstance sustituye a Get-WmiObject, retirado en Windows 11
+		// recientes; con el anterior la detección devolvía false en silencio.
+		cmd := exec.Command("powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_Battery | Measure-Object | Select-Object -ExpandProperty Count")
 		output, err := cmd.Output()
 		if err != nil {
 			return false, nil
@@ -447,8 +527,10 @@ func (a *App) CheckBattery() (bool, error) {
 
 // CheckFileExists checks if a file exists
 func (a *App) CheckFileExists(path string) bool {
+	// Un error de permisos no significa que exista: os.IsNotExist lo daba por
+	// bueno y la UI intentaba abrir un fichero que no podía leer.
 	_, err := os.Stat(path)
-	return !os.IsNotExist(err)
+	return err == nil
 }
 
 // OpenPath opens a file or URL using the system default handler

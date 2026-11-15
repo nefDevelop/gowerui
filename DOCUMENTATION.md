@@ -76,6 +76,11 @@ Un `settings.json` ausente es el estado normal de una instalación nueva, no un
 error. Uno corrupto se descarta con un log en vez de propagar: es preferible
 quedarse sin ruta guardada que dejar la app sin motor.
 
+La escritura es **atómica** (`writeFileAtomic`: temporal en el mismo directorio,
+`Sync` y `rename`). Con un `os.WriteFile` directo, un corte a mitad corrompía el
+fichero y el descarte silencioso de arriba hacía que el usuario perdiera su ruta
+sin saber por qué.
+
 ### 2.2 Resolución del sidecar
 
 `resolveGowerPath()` (no exportado) delega en `lookupGowerPath()`, que busca en
@@ -189,7 +194,12 @@ locales se sirven a través del `AssetServer.Handler` de Wails
 4. Sin nada utilizable → `thumbnail: ""`.
 
 El handler hace `PathUnescape`, `filepath.Clean` y fuerza ruta absoluta en
-Linux antes de servir el fichero.
+Linux. Después aplica `canServeLocalAsset` (`assets.go`): solo sirve ficheros
+regulares con extensión de imagen o vídeo (`.png`, `.jpg`, `.webp`, `.avif`,
+`.gif`, `.svg`, `.mp4`…). Sin esa lista, el prefijo servía **cualquier** ruta
+absoluta del disco a la webview; un fallo de escape en el frontend lo convertía
+en un lector de ficheros arbitrario. Se responde 404, no 403, para no revelar
+si el fichero existe.
 
 ### 2.5 Ciclo de vida de la ventana y el tray
 

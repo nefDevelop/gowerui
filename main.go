@@ -90,12 +90,15 @@ func main() {
 					// 5. Clean path
 					decodedPath = filepath.Clean(decodedPath)
 
-					if _, err := os.Stat(decodedPath); err == nil {
-						http.ServeFile(w, r, decodedPath)
+					// 6. Solo imágenes/vídeo: el prefijo no puede servir
+					// cualquier fichero del disco a la webview.
+					if !canServeLocalAsset(decodedPath) {
+						log.Printf("[ASSETS] Refused: %s", decodedPath)
+						http.Error(w, "File not found", http.StatusNotFound)
 						return
 					}
-					log.Printf("[ASSETS] Not found: %s", decodedPath)
-					http.Error(w, "File not found", http.StatusNotFound)
+
+					http.ServeFile(w, r, decodedPath)
 					return
 				}
 				http.NotFound(w, r)

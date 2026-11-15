@@ -30,9 +30,11 @@ la interfaz SvelteKit.
 ├── logging.go               # Log a fichero del usuario, con rotación por tamaño
 ├── diagnostics.go           # --version/--doctor/--help (sin GTK) y pin del sidecar embebido
 ├── tray.go                  # Icono de bandeja y decisión de ocultar/cerrar la ventana
+├── assets.go                # Lista blanca de rutas servidas por /local-asset
 ├── app_test.go              # Tests unitarios del backend
 ├── diagnostics_test.go      # Tests del log, la rotación y --doctor
 ├── tray_test.go             # Tests de las transiciones de trayState
+├── assets_test.go           # Tests de la lista blanca de /local-asset
 ├── contract_test.go         # Verificación del contrato contra el binario pineado
 ├── Makefile                 # Orquestador de build y tests
 ├── wails.json               # Config de Wails (nombre, versión, flags)
@@ -182,6 +184,19 @@ cambio de UI, un fix puntual o configuración.
     `OpenLogFile` comparten `openWithSystemHandler`, que lanza el handler y
     recolecta el hijo en una goroutine: `xdg-open` puede tardar segundos y la
     UI no debe esperar, pero tampoco debe dejar zombis.
+
+16. **`/local-asset` sirve solo lo que la UI pinta.** `canServeLocalAsset`
+    (`assets.go`) exige fichero regular y una extensión de imagen o vídeo. Cada
+    extensión que añadas amplía lo que un fallo del frontend puede leer del
+    disco, así que no metas "por si acaso". Sin esa lista el prefijo servía
+    cualquier ruta absoluta (claves SSH incluidas).
+
+17. **Los comandos en background se matan al agotar
+    `backgroundCommandTimeout`** (10 min). No lo bajes sin revisar `set <url>`
+    y `download`: son descargas reales. Un timeout emite
+    `gower-command-failed` con `timed out after …` para que la UI no lo deje en
+    silencio. Los comandos en primer plano no llevan tope: el usuario está
+    esperando y puede cancelar.
 
 ## Convenciones
 

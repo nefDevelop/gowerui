@@ -818,6 +818,33 @@ func TestRunGowerCommandBackgroundSuccessDoesNotEmitFailure(t *testing.T) {
 	}
 }
 
+// Un gower colgado no puede dejar el proceso vivo para siempre: al agotar su
+// tope, el comando en background se mata y el fallo llega a la UI.
+func TestRunGowerCommandBackgroundTimesOut(t *testing.T) {
+	fakeGower(t, "sleep 5\n")
+
+	previous := backgroundCommandTimeout
+	backgroundCommandTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { backgroundCommandTimeout = previous })
+
+	recorder := &eventRecorder{}
+	app := NewApp()
+	app.emit = recorder.emit
+
+	if _, err := app.RunGowerCommand([]string{"set", "slow"}, true); err != nil {
+		t.Fatalf("RunGowerCommand() error inesperado: %v", err)
+	}
+
+	evt := recorder.waitFor(t, "gower-command-failed", 5*time.Second)
+	payload, ok := evt.data[0].(backgroundCommandFailure)
+	if !ok {
+		t.Fatalf("data[0] = %T, se esperaba backgroundCommandFailure", evt.data[0])
+	}
+	if !strings.Contains(payload.Error, "timed out") {
+		t.Errorf("Error = %q, se esperaba mencionar el timeout", payload.Error)
+	}
+}
+
 func TestSummarizeGowerError(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -983,5 +1010,66 @@ func TestCheckBatteryDoesNotError(t *testing.T) {
 	}
 	if hasBattery != want {
 		t.Errorf("CheckBattery() = %v, sysfs indica %v", hasBattery, want)
+	}
+}
+
+// Si el HOME apunta a algo que no es un directorio, GetAppContext debe devolver
+// el error en vez de entregar rutas que nunca se crearon.
+func TestGetAppContextPropagatesMkdirError(t *testing.T) {
+	homeFile := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(homeFile, []byte("x"), 0o644); err != nil {
+		t.Fatalf("no se pudo preparar el HOME falso: %v", err)
+	}
+	t.Setenv("HOME", homeFile)
+	t.Setenv("USERPROFILE", homeFile)
+
+	if _, err := NewApp().GetAppContext(); err == nil {
+		t.Fatal("GetAppContext() debería fallar si no puede crear los directorios")
+	}
+}
+
+// La configuración se escribe con rename atómico: nunca queda un fichero a
+// medias ni temporales sueltos en el directorio.
+func TestWriteFileAtomic(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.json")
+
+	if err := writeFileAtomic(path, []byte(`{"gower_path":"/opt/gower"}`), 0o644); err != nil {
+		t.Fatalf("writeFileAtomic() error inesperado: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("no se pudo leer el fichero escrito: %v", err)
+	}
+	if string(data) != `{"gower_path":"/opt/gower"}` {
+		t.Errorf("contenido = %q", string(data))
+	}
+
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("no se pudo consultar el fichero: %v", err)
+		}
+		if perm := info.Mode().Perm(); perm != 0o644 {
+			t.Errorf("permisos = %o, se esperaban 644", perm)
+		}
+	}
+
+	// Reemplazo sobre un fichero existente.
+	if err := writeFileAtomic(path, []byte(`{}`), 0o644); err != nil {
+		t.Fatalf("writeFileAtomic() al reemplazar: %v", err)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("no se pudo listar el directorio: %v", err)
+	}
+	if len(entries) != 1 {
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Errorf("quedaron ficheros en %s: %v", dir, names)
 	}
 }
