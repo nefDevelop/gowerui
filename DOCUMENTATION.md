@@ -116,7 +116,9 @@ frontend/src/
 │   ├── stores/
 │   │   ├── theme.js              # 'light' | 'dark' | 'system', persiste en localStorage
 │   │   ├── i18n.js               # Locale + store derivado `t(key, vars)`
-│   │   └── notifications.js      # Cola de toasts con auto-eliminación
+│   │   ├── notifications.js      # Cola de toasts con auto-eliminación
+│   │   ├── wallpaper-list.js     # Lista paginada genérica (items, página, sort, color)
+│   │   └── wallpapers.js         # createFeedStore / createFavoritesStore
 │   ├── i18n/locales.js           # Diccionario de traducciones
 │   └── components/               # 9 componentes de presentación
 ├── routes/
@@ -134,6 +136,22 @@ método al objeto `gower` de `api.js`, nunca una llamada directa al binding.
 cualquier componente pinta una pantalla de error con el mensaje, un botón de
 reintento (`reset`) y el enlace **Open logs**, en vez de dejar la ventana en
 blanco.
+
+El feed y los favoritos viven en `lib/stores/`, no en `+page.svelte`:
+
+- `wallpaper-list.js` es el store genérico: items, página, sort, colores,
+  loading y las cargas (`load({ reset, skipColors, page })`). El `cachePath` se
+  inyecta con `setCachePath` cuando llega el `AppContext`; sin él, `load()` no
+  hace nada.
+- `wallpapers.js` son dos factorías finas sobre él: el feed pide 10 items (9 +
+  buffer) y favoritos 9. Ambas comparten el mismo store de color
+  (`writable("")` en la página), que es lo que hace que el filtro se aplique a
+  las dos pestañas a la vez.
+- Se usa una factoría y no un singleton para que cada test (y cada montaje de
+  la página) tenga su propio estado.
+
+La página se queda con lo que es puramente suyo: pestaña activa, wallpapers
+actuales, monitores, búsqueda, diálogos y configuración.
 
 #### `extractJson`
 

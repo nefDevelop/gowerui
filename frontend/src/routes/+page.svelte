@@ -1,9 +1,10 @@
 <script>
     import { onMount, tick, untrack } from "svelte";
+    import { writable } from "svelte/store";
+    import { fade } from "svelte/transition";
     import { t } from "$lib/stores/i18n";
     import { theme } from "$lib/stores/theme";
     import { gower, getAppContext, mapThumbnails, checkFileExists, normalizeId, wallpaperTarget } from "$lib/api";
-    import { fade } from "svelte/transition";
 
     import ColorBar from "$lib/components/ColorBar.svelte";
     import SettingsPanel from "$lib/components/SettingsPanel.svelte";
@@ -13,29 +14,21 @@
     import DeleteDialog from "$lib/components/DeleteDialog.svelte";
     import WallpaperGrid from "$lib/components/WallpaperGrid.svelte";
     import { notifications as notificationsStore } from "$lib/stores/notifications";
+    import { createFeedStore, createFavoritesStore } from "$lib/stores/wallpapers";
+
+    // El color es compartido: el mismo filtro se aplica al feed y a favoritos.
+    const selectedColor = writable("");
+    const feed = createFeedStore({ color: selectedColor });
+    const favorites = createFavoritesStore({ color: selectedColor });
+
     let currentTab = $state("home");
-    /** @type {any[]} */
-    let feedModel = $state([]);
-    /** @type {any[]} */
-    let favoritesModel = $state([]);
     /** @type {any[]} */
     let currentWallpapers = $state([]); // Active wallpapers
     /** @type {any[]} */
     let monitors = $state([]);
-    let loading = $state(false);
 
     /** @type {{cache_path: string, config_path: string, user_home: string} | null} */
     let appContext = $state(null);
-
-    let feedPage = $state(1);
-    let favoritesPage = $state(1); // New state for favorites pagination
-    let favoritesCurrentSort = $state("Smart"); // New state for favorites sort
-    let currentSort = $state("Smart");
-    let selectedColor = $state("");
-    /** @type {string[]} */
-    let feedColors = $state([]);
-    /** @type {string[]} */
-    let favoritesColors = $state([]);
 
     // Search State (Persisted)
     /** @type {any[]} */
@@ -91,85 +84,6 @@
     ];
 
     // --- ACTIONS ---
-
-    /**
-     * @param {boolean} [reset]
-     * @param {boolean} [skipColors]
-     */
-    async function loadHome(reset = false, skipColors = false) {
-        if (!appContext) return;
-        if (reset) {
-            feedPage = 1;
-        }
-        // Only show loading skeletons if we don't have items yet
-        if (feedModel.length === 0) loading = true;
-
-        try {
-            // Fetch feed and colors in parallel, or just feed
-            const tasks = [
-                gower.getFeed(
-                    feedPage,
-                    10, // Buffer: fetch 10 to show 9
-                    selectedColor,
-                    currentSort.toLowerCase(),
-                )
-            ];
-            
-            if (!skipColors) {
-                tasks.push(gower.getFeedColors());
-            }
-
-            const [result, colorsResult] = await Promise.all(tasks);
-
-            /** @type {any[]} */
-            let newItems = mapThumbnails(result || [], appContext.cache_path);
-            const existingIds = new Set();
-            newItems = newItems.filter((i) => !existingIds.has(i.id));
-
-            feedModel = newItems;
-
-            if (!skipColors && Array.isArray(colorsResult)) {
-                feedColors = colorsResult;
-            }
-            console.log("[loadHome] Feed cargado. Items:", newItems.length);
-        } catch (e) {
-            console.error("[loadHome] Error al cargar feed:", e);
-        } finally {
-            loading = false;
-        }
-    }
-
-    let favoritesLoading = $state(false);
-    /**
-     * @param {boolean} [skipColors]
-     * @param {number} [page]
-     * @param {string} [sort]
-     */
-    async function loadFavorites(skipColors = false, page = favoritesPage, sort = favoritesCurrentSort.toLowerCase()) {
-        if (!appContext || favoritesLoading) return;
-
-        // Show loading only if empty to avoid flicker
-        if (favoritesModel.length === 0) favoritesLoading = true;
-        try {
-            const tasks = [gower.getFavorites(page, 9, selectedColor, sort)]; // Use page, limit, color, sort
-            if (!skipColors) {
-                tasks.push(gower.getFavoritesColors());
-            }
-
-            const [result, colorsResult] = await Promise.all(tasks);
-
-            favoritesModel = mapThumbnails(result || [], appContext.cache_path);
-
-            if (!skipColors && Array.isArray(colorsResult)) {
-                favoritesColors = colorsResult;
-            }
-            console.log("[loadFavorites] Favoritos cargados. Items:", favoritesModel.length);
-        } catch (e) {
-            console.error("[loadFavorites] Error al cargar favoritos:", e);
-        } finally {
-            favoritesLoading = false;
-        }
-    }
 
     async function loadCurrentWallpapers() {
         if (!appContext) return;
@@ -238,8 +152,8 @@
             await gower.blacklist(snap.id);
             
             // 3. Update UI locally for instant feedback
-            feedModel = feedModel.filter((i) => i.id !== snap.id);
-            favoritesModel = favoritesModel.filter((i) => i.id !== snap.id);
+            feed.remove(snap.id);
+            favorites.remove(snap.id);
             currentWallpapers = currentWallpapers.filter((i) => i.id !== snap.id);
             if (searchResults) searchResults = searchResults.filter((i) => i.id !== snap.id);
             
@@ -287,7 +201,7 @@
      */
     async function setOnAllMonitors(item) {
         if (!item || monitors.length === 0) return;
-        loading = true;
+        feed.setLoading(true);
         try {
             const target = wallpaperTarget(item, currentTab === "search");
             for (const m of monitors) {
@@ -297,7 +211,7 @@
         } catch (e) {
             console.error(e);
         } finally {
-            loading = false;
+            feed.setLoading(false);
         }
     }
 
@@ -456,7 +370,7 @@
      */
     async function toggleFavorite(item) {
         const normalizedItemId = normalizeId(item.id);
-        const isCurrentlyFavorite = favoritesModel.some((f) => normalizeId(f.id) === normalizedItemId);
+        const isCurrentlyFavorite = $favorites.items.some((f) => normalizeId(f.id) === normalizedItemId);
 
         try {
             if (isCurrentlyFavorite) {
@@ -470,10 +384,8 @@
             }
             // Refresh the relevant tab to update the favorite status from the backend
             if (currentTab === "home" || currentTab === "search" || currentTab === "favorites") {
-                loadHome(false, true); // Refresh home, skip colors for speed, to update favorite status
-                loadFavorites(); // Also refresh favorites to ensure consistency across tabs
-            } else if (currentTab === "favorites") { // If on favorites tab, the gower-command-finished listener will handle the refresh
-                loadFavorites(); // Explicitly refresh favorites if on favorites tab
+                feed.load({ skipColors: true }); // Skip colors for speed, to update favorite status
+                favorites.load(); // Keep both tabs consistent
             }
         } catch (e) { // Keep error for user feedback
             notificationsStore.add("Error al actualizar favoritos", "error");
@@ -503,7 +415,7 @@
             await gower.deleteWallpaper(item.id);
 
             // Update models locally
-            feedModel = feedModel.filter((i) => i.id !== item.id);
+            feed.remove(item.id);
             currentWallpapers = currentWallpapers.filter(
                 (i) => i.id !== item.id,
             );
@@ -532,7 +444,7 @@
      * @param {WheelEvent} e
      */
     function handleWheel(e) {
-        if (loading || favoritesLoading) return;
+        if ($feed.loading || $favorites.loading) return;
         if (currentTab !== "home" && currentTab !== "favorites") return;
 
         // Prevent default scrolling to handle pages
@@ -541,20 +453,16 @@
         if (e.deltaY > 0) {
             // Scroll down -> Next page
             if (currentTab === "home") {
-                feedPage++;
-                loadHome();
+                feed.load({ page: $feed.page + 1 });
             } else if (currentTab === "favorites") {
-                favoritesPage++;
-                loadFavorites();
+                favorites.load({ page: $favorites.page + 1 });
             }
         } else if (e.deltaY < 0) {
             // Scroll up -> Prev page
-            if (currentTab === "home" && feedPage > 1) {
-                feedPage--;
-                loadHome();
-            } else if (currentTab === "favorites" && favoritesPage > 1) {
-                favoritesPage--;
-                loadFavorites();
+            if (currentTab === "home" && $feed.page > 1) {
+                feed.load({ page: $feed.page - 1 });
+            } else if (currentTab === "favorites" && $favorites.page > 1) {
+                favorites.load({ page: $favorites.page - 1 });
             }
         }
     }
@@ -563,41 +471,41 @@
      * @param {CustomEvent<string>} e
      */
     function handleColorSelect(e) {
-        selectedColor = selectedColor === e.detail ? "" : e.detail;
-        if (currentTab === "home") loadHome(true);
-        if (currentTab === "favorites") loadFavorites();
+        selectedColor.update((current) =>
+            current === e.detail ? "" : e.detail,
+        );
+        if (currentTab === "home") feed.load({ reset: true });
+        if (currentTab === "favorites") favorites.load();
     }
 
     /** 
      * @param {CustomEvent<string>} e
      */
     function handleSort(e) {
-        currentSort = e.detail;
-        loadHome(true);
+        feed.setSort(e.detail);
+        feed.load({ reset: true });
     }
     
     /**
      * @param {CustomEvent<string>} e
      */
     function handleSortFavorites(e) {
-        favoritesCurrentSort = e.detail;
-        loadFavorites(false, 1, favoritesCurrentSort.toLowerCase()); // Reset to page 1 on sort change
+        favorites.setSort(e.detail);
+        favorites.load({ page: 1 }); // Reset to page 1 on sort change
     }
 
     /**
      * @param {CustomEvent<number>} e
      */
     function handlePageManualFavorites(e) {
-        favoritesPage = e.detail;
-        loadFavorites(false, favoritesPage, favoritesCurrentSort.toLowerCase());
+        favorites.load({ page: e.detail });
     }
 
     /**
      * @param {CustomEvent<number>} e
      */
     function handlePageManual(e) {
-        feedPage = e.detail;
-        loadHome(false); // Don't reset to page 1
+        feed.load({ page: e.detail }); // Don't reset to page 1
     }
 
     $effect(() => {
@@ -605,13 +513,13 @@
         const tab = currentTab;
         untrack(() => {
             if (tab === "home") {
-                if (feedModel.length === 0) loadHome();
+                if ($feed.items.length === 0) feed.load();
                 // Only load current wallpapers if not already loaded or if tab changes to home
                 if (currentWallpapers.length === 0 || currentTab !== "home") {
                     loadCurrentWallpapers(); // Refresh active status
                 }
             }
-            if (tab === "favorites") loadFavorites();
+            if (tab === "favorites") favorites.load();
 
             // Sync daemon status specifically when entering settings
             if (tab === "settings") {
@@ -669,12 +577,15 @@
 
                 appContext = await getAppContext();
                 console.log("[init] AppContext obtenido:", $state.snapshot(appContext));
+                // Las listas necesitan cache_path para montar las miniaturas.
+                feed.setCachePath(appContext?.cache_path || "");
+                favorites.setCachePath(appContext?.cache_path || "");
                 await loadConfig(); // Aseguramos que la configuración se cargue antes de los datos que dependen de ella
 
                 // Load all data in parallel without blocking the UI start
                 Promise.all([
-                    loadFavorites(),
-                    loadHome(),
+                    favorites.load(),
+                    feed.load(),
                     loadCurrentWallpapers(), // Load current wallpapers
                 ]).catch((e) =>
                     console.error("Initialization background load failed:", e),
@@ -721,11 +632,11 @@
                     if (args.includes("favorites") || isBlacklist || isDelete) {
                         // Only refresh if on the favorites tab, as toggleFavorite already handles optimistic update
                         if (currentTab === "favorites") {
-                            loadFavorites(isBlacklist || isDelete);
+                            favorites.load({ skipColors: isBlacklist || isDelete });
                         }
                         // Phase 2: Background color recalculation if it was a blacklist (only if visible)
                         if ((isBlacklist || isDelete) && currentTab === "favorites") {
-                            setTimeout(() => loadFavorites(false), 600);
+                            setTimeout(() => favorites.load(), 600);
                         }
                     }
 
@@ -739,10 +650,10 @@
                         args.includes("download")
                     ) {
                         // Phase 1: Quick fill
-                        loadHome(false, isBlacklist || isDelete);
+                        feed.load({ skipColors: isBlacklist || isDelete });
                         // Phase 2: Background color recalculation if it was a blacklist (only if visible)
                         if ((isBlacklist || isDelete) && currentTab === "home") {
-                            setTimeout(() => loadHome(false, false), 600);
+                            setTimeout(() => feed.load(), 600);
                         }
                     }
                 });
@@ -814,17 +725,17 @@
             <div in:fade class="tab-pane home-layout">
                 <div class="top-bar">
                     <ColorBar
-                        colors={feedColors}
-                        {selectedColor}
+                        colors={$feed.colors}
+                        selectedColor={$selectedColor}
                         on:select={handleColorSelect}
                     />
                 </div>
 
                 <div class="grid-area" onwheel={handleWheel}>
                     <WallpaperGrid
-                        items={feedModel}
-                        {loading}
-                        favoritesList={favoritesModel}
+                        items={$feed.items}
+                        loading={$feed.loading}
+                        favoritesList={$favorites.items}
                         collectionPath={config?.paths?.wallpapers}
                         on:preview={(e) => handlePreview(e.detail)}
                         on:contextmenu={(e) =>
@@ -841,9 +752,9 @@
 
                 <div class="bottom-bar">
                     <SortBar
-                        {currentSort}
+                        currentSort={$feed.sort}
                         {sortOptions}
-                        currentPage={feedPage}
+                        currentPage={$feed.page}
                         on:sort={handleSort}
                         on:page={handlePageManual}
                         on:undo={handleUndo}
@@ -852,7 +763,7 @@
 
                 <CurrentWallpapersBar
                     {currentWallpapers}
-                    favoritesList={favoritesModel}
+                    favoritesList={$favorites.items}
                     collectionPath={config?.paths?.wallpapers}
                     onfavorite={(item) => toggleFavorite(item)}
                     onblacklist={(item) => handleBlock(item)}
@@ -865,7 +776,7 @@
                     {config}
                     {status}
                     {appContext}
-                    {favoritesModel}
+                    favoritesModel={$favorites.items}
                     bind:searchResults
                     bind:searchQuery
                     bind:searchPage
@@ -887,18 +798,18 @@
             <div in:fade class="tab-pane home-layout">
                 <div class="top-bar" style="margin-bottom: 6px;">
                     <ColorBar
-                        colors={favoritesColors}
-                        {selectedColor}
+                        colors={$favorites.colors}
+                        selectedColor={$selectedColor}
                         on:select={handleColorSelect}
                     />
                 </div>
                 <div class="grid-area" onwheel={handleWheel}>
                     <!-- Reuse WallpaperGrid for favorites, different type/actions -->
                     <WallpaperGrid
-                        items={favoritesModel}
-                        loading={favoritesLoading}
+                        items={$favorites.items}
+                        loading={$favorites.loading}
                         type="favorites"
-                        favoritesList={favoritesModel}
+                        favoritesList={$favorites.items}
                         collectionPath={config?.paths?.wallpapers}
                         on:preview={(e) => handlePreview(e.detail)}
                         on:contextmenu={(e) =>
@@ -912,14 +823,14 @@
                         on:download={(e) => handleDownload(e.detail)}
                     />
                 </div>
-                {#if favoritesModel.length === 0 && !favoritesLoading}
+                {#if $favorites.items.length === 0 && !$favorites.loading}
                     <div class="empty">No tienes favoritos.</div>
                 {/if}
                 <div class="bottom-bar">
                     <SortBar
-                        currentSort={favoritesCurrentSort}
+                        currentSort={$favorites.sort}
                         {sortOptions}
-                        currentPage={favoritesPage}
+                        currentPage={$favorites.page}
                         on:sort={handleSortFavorites}
                         on:page={handlePageManualFavorites}
                         on:undo={handleUndo}
@@ -1025,9 +936,9 @@
                         >
                             <span
                                 class="material-icons"
-                                class:active={favoritesModel.some((f) => normalizeId(f.id) === normalizeId(previewItem.id))}
+                                class:active={$favorites.items.some((f) => normalizeId(f.id) === normalizeId(previewItem.id))}
                             >
-                                {favoritesModel.some((f) => normalizeId(f.id) === normalizeId(previewItem.id))
+                                {$favorites.items.some((f) => normalizeId(f.id) === normalizeId(previewItem.id))
                                     ? "favorite" : "favorite_border"}
                             </span>
                         </button>

@@ -66,4 +66,7 @@ Este documento describe los pasos necesarios y las características planificadas
 - [x] **Acotar `/local-asset/`**: `canServeLocalAsset` exige fichero regular y extensión de imagen/vídeo. Antes servía cualquier ruta absoluta del disco a la webview.
 - [x] **Timeout en comandos background**: `backgroundCommandTimeout` (10 min) mata el proceso y emite el fallo a la UI. Sigue sin haber límite de concurrencia: se pueden lanzar varios `set` a la vez.
 - [x] **Red de seguridad de la UI**: `<svelte:boundary>` en `+layout.svelte` con mensaje, reintento y apertura del log. Antes un throw en cualquier componente dejaba la ventana en blanco, sin explicación ni salida.
-- [ ] **Refactor del frontend por fases**: `+page.svelte` (1445 líneas) y `SettingsPanel` (1124) concentran estado y lógica. Plan: (1) extraer la carga de feed/favoritos a `lib/stores/` con tests; (2) mover la persistencia de búsqueda y el estado de diálogos; (3) trocear `SettingsPanel` (providers, daemon, rutas) en subcomponentes. Sin cambios de comportamiento entre fases, y `svelte-check` verde en cada una.
+- [ ] **Refactor del frontend por fases**: `+page.svelte` y `SettingsPanel` (1124 líneas) concentran estado y lógica. Sin cambios de comportamiento entre fases, y `svelte-check` verde en cada una.
+  - [x] (1) **Feed y favoritos** a `lib/stores/` (`wallpaper-list.js` genérico + `wallpapers.js` con las dos factorías) y tests en Vitest. La página se queda con pestaña, wallpapers actuales, búsqueda, diálogos y config.
+  - [ ] (2) Persistencia de búsqueda y estado de diálogos.
+  - [ ] (3) Trocear `SettingsPanel` en providers, daemon y rutas/gower.
