@@ -114,7 +114,7 @@ frontend/src/
 ├── lib/
 │   ├── api.js                    # Fachada única hacia el backend
 │   ├── stores/
-│   │   ├── theme.js              # 'light' | 'dark' | 'system', persiste en localStorage
+│   │   ├── theme.js              # 'light' | 'dark' | 'system'; system sigue prefers-color-scheme en vivo
 │   │   ├── i18n.js               # Locale + store derivado `t(key, vars)`
 │   │   ├── notifications.js      # Cola de toasts con auto-eliminación
 │   │   ├── wallpaper-list.js     # Lista paginada genérica (items, página, sort, color)
