@@ -208,7 +208,7 @@ el array anidado.
 | `getFeed(page, limit, color, sort)` | `feed show ... --json` |
 | `setWallpaper(id, monitor)` | `set <id> [--target-monitor <m>]` *(background)* |
 | `setRandom(monitor)` | `set random [--target-monitor <m>]` *(background)* |
-| `getFavorites(page, limit, color, sort)` | `favorites list ... --json` |
+| `getFavorites(page, limit, color)` | `favorites list ... --json` (el CLI pineado no admite `--sort`; la UI oculta ese selector) |
 | `addFavorite(id)` / `removeFavorite(id)` | `favorites add|remove <id>` |
 | `blacklist(id)` | `blacklist add <id>` |
 | `download(id)` | `download <id> --to-collection` *(background)* |
@@ -229,6 +229,12 @@ el evento `gower-command-finished` cuando termina. Si el comando falla, emite
 además `gower-command-failed` con `{args, error}` —el `stderr` de gower ya
 resumido—, que es lo que dispara el toast de error en la UI. Sin ese evento el
 fallo solo quedaba en el stdout de la app y la acción parecía no hacer nada.
+
+Los comandos cuelgan de un contexto que `App.shutdown()` cancela en
+`OnShutdown`, y llevan `cmd.WaitDelay`: un `gower` colgado muere al cerrar la
+app o al agotar su tope, sin esperar a descendientes que hereden `stderr`.
+Los argumentos se registran con `redactedArgs`, que tapa API keys y tokens: el
+log se comparte en los informes de error y no puede contener credenciales.
 
 ### 2.4 Carga de miniaturas
 
@@ -284,6 +290,43 @@ Reglas del estado (`tray.go`):
   tray se declaró listo (limitación de la librería: en Linux `onReady` se llama
   antes de exportar el icono por DBus).
 
+### 2.6 Tamaño de la ventana en compositores de tiling
+
+El diseño está pensado para 440 px de ancho y alto flexible. En
+`main.go` se declara `MinWidth: 440` y `MaxWidth: 440`; en Linux,
+`Linux.ProgramName: "gowerui"` fija un `app-id` estable para las reglas del
+compositor. El frontend añade una red de seguridad: `.app-container` se limita a
+`var(--app-width)` (440 px) y se centra, así que si el compositor ignora las
+pistas el contenido no se deforma.
+
+Qué se puede y qué no se puede garantizar:
+
+| Eje | WMs flotantes | Tiling (niri, sway, i3, Hyprland) |
+|---|---|---|
+| Ancho | 440 px, no redimensionable | Acotado por las pistas; en niri limita el ancho de columna |
+| Alto | Flexible (750 px inicial) | Lo impone el compositor; en niri siempre ocupa el alto del workspace |
+
+No se llama a `WindowSetSize` ni `WindowCenter` al arrancar: en tiling el
+compositor recoloca y puede provocar parpadeos.
+
+Si una versión de niri no respeta las pistas, la regla del compositor manda.
+En `~/.config/niri/config.kdl`:
+
+```kdl
+window-rule {
+    match app-id="gowerui"
+    default-column-width { fixed 440; }
+    min-width 440
+    max-width 440
+}
+```
+
+Equivalente para sway:
+
+```
+for_window [app_id="gowerui"] floating enable, resize set 440 750
+```
+
 ## 3. Build y empaquetado
 
 ### Requisitos
@@ -324,7 +367,9 @@ un fichero por usuario.
 | Windows | `%LOCALAPPDATA%\gowerui\logs\gowerui.log` |
 | macOS | `~/Library/Logs/gowerui/gowerui.log` |
 
-Al superar 1 MiB se rota a `.log.1` (solo se conserva una generación). En
+El fichero se crea con permisos `0600` y `setupLogging` corrige el modo de los
+logs antiguos (`0644`). Al superar 1 MiB se rota a `.log.1` (solo se conserva
+una generación). En
 Ajustes hay un enlace **Open logs** (`OpenLogFile`) que lo abre con el visor del
 sistema, sin que el usuario tenga que buscar la ruta.
 

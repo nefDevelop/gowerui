@@ -14,6 +14,10 @@ export function GetAppVersion():Promise<string>;
 
 export function GetGowerStatus():Promise<main.GowerStatus>;
 
+export function GetLogPath():Promise<string>;
+
+export function OpenLogFile():Promise<void>;
+
 export function OpenPath(arg1:string):Promise<void>;
 
 export function PickDirectory(arg1:string):Promise<string>;

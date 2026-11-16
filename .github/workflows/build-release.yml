@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 env:
-  WAILS_VERSION: v2.12.0
+  WAILS_VERSION: v2.13.0
   WAILS_TAGS: webkit2_41
 
 jobs:

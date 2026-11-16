@@ -105,6 +105,56 @@ func TestSetupLoggingWritesToFile(t *testing.T) {
 	if !strings.Contains(string(data), "marcador-de-prueba") {
 		t.Errorf("el log no contiene la línea escrita: %q", string(data))
 	}
+
+	assertPrivateLogMode(t, path)
+}
+
+// El log no debe ser legible por otras cuentas: puede contener rutas, ids y
+// mensajes de error del usuario.
+func assertPrivateLogMode(t *testing.T, path string) {
+	t.Helper()
+
+	if runtime.GOOS == "windows" {
+		return // Los permisos POSIX no aplican.
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("no se pudo inspeccionar el log: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Errorf("permisos del log = %#o, se esperaba 0600", perm)
+	}
+}
+
+// Abrir un log ya existente no cambia su modo: setupLogging debe corregir el
+// 0644 que dejaban las versiones anteriores.
+func TestSetupLoggingTightensExistingLog(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("los permisos POSIX no aplican en Windows")
+	}
+
+	isolateLogs(t)
+
+	path, err := logPath()
+	if err != nil {
+		t.Fatalf("logPath() devolvió error: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("no se pudo crear el directorio del log: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("viejo\n"), 0o644); err != nil {
+		t.Fatalf("no se pudo preparar el log: %v", err)
+	}
+	if err := os.Chmod(path, 0o644); err != nil {
+		t.Fatalf("no se pudieron ajustar los permisos: %v", err)
+	}
+
+	if _, err := setupLogging(); err != nil {
+		t.Fatalf("setupLogging() devolvió error: %v", err)
+	}
+
+	assertPrivateLogMode(t, path)
 }
 
 func TestRotateLogRenamesWhenFull(t *testing.T) {

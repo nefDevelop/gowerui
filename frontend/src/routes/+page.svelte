@@ -469,14 +469,6 @@
     }
     
     /**
-     * @param {CustomEvent<string>} e
-     */
-    function handleSortFavorites(e) {
-        favorites.setSort(e.detail);
-        favorites.load({ page: 1 }); // Reset to page 1 on sort change
-    }
-
-    /**
      * @param {CustomEvent<number>} e
      */
     function handlePageManualFavorites(e) {
@@ -788,11 +780,13 @@
                     <div class="empty">No tienes favoritos.</div>
                 {/if}
                 <div class="bottom-bar">
+                    <!-- `favorites list` del CLI pineado no acepta --sort, así
+                         que el selector se oculta en vez de fingir que ordena. -->
                     <SortBar
                         currentSort={$favorites.sort}
                         {sortOptions}
                         currentPage={$favorites.page}
-                        on:sort={handleSortFavorites}
+                        showSort={false}
                         on:page={handlePageManualFavorites}
                         on:undo={handleUndo}
                     />
@@ -963,8 +957,9 @@
     .app-container {
         display: flex;
         flex-direction: column;
-        height: 100vh;
-        width: 100vw;
+        height: 100%;
+        /* No 100vw: el layout ya limita el ancho a la franja de diseño. */
+        width: 100%;
         background: var(--background);
         border: none;
         overflow: hidden;

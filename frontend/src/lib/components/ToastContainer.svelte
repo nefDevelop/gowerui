@@ -61,7 +61,13 @@
     .toast-container {
         position: fixed;
         top: 40px; /* Below titlebar/nav */
-        right: 12px;
+        /* Centrada sobre la franja de diseño: si un compositor de tiling
+           estira la ventana, los avisos no se van al borde de la pantalla. */
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: min(100%, var(--app-width));
+        padding-right: 12px;
         display: flex;
         flex-direction: column;
         align-items: flex-end;

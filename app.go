@@ -22,6 +22,12 @@ import (
 // holgado. Se declara var para que los tests puedan reducirlo.
 var backgroundCommandTimeout = 10 * time.Minute
 
+// commandWaitDelay acota lo que Wait espera a que se cierren stdout/stderr
+// después de matar un comando. Sin este tope, un nieto que herede los pipes
+// mantiene vivo el Wait y retrasa el aviso de timeout hasta que el nieto
+// termine por su cuenta.
+var commandWaitDelay = 5 * time.Second
+
 // emitFunc emite un evento de Wails hacia el frontend.
 type emitFunc func(eventName string, data ...interface{})
 
@@ -40,6 +46,11 @@ type App struct {
 	// EventsEmit hace panic si el contexto es nil, así que sin esta inyección
 	// ese camino no era testeable.
 	emit emitFunc
+
+	// baseCtx es el padre de todos los comandos. Al cerrar la app se cancela
+	// para que un gower colgado no sobreviva al cierre del proceso.
+	baseCtx    context.Context
+	cancelBase context.CancelFunc
 }
 
 // appSettings es la configuración propia de la GUI. No forma parte del config de
@@ -55,9 +66,21 @@ type appSettings struct {
 func NewApp() *App {
 	// Por defecto no se emite nada: así una App usada sin startup (tests, o
 	// cualquier llamada previa a OnStartup) no entra en panic.
+	baseCtx, cancelBase := context.WithCancel(context.Background())
 	return &App{
-		tray: &trayState{},
-		emit: func(string, ...interface{}) {},
+		tray:       &trayState{},
+		emit:       func(string, ...interface{}) {},
+		baseCtx:    baseCtx,
+		cancelBase: cancelBase,
+	}
+}
+
+// shutdown cancela los comandos en vuelo. Wails llama a OnShutdown en todo
+// cierre, así que es el último punto donde se pueden matar los hijos que
+// siguieran vivos.
+func (a *App) shutdown() {
+	if a.cancelBase != nil {
+		a.cancelBase()
 	}
 }
 
@@ -237,13 +260,19 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 	// El shell no aportaba resolución de entorno: cmd.Env ya hereda el del
 	// proceso, y gowerPath es absoluto salvo cuando el usuario configura uno
 	// relativo, en cuyo caso exec.Command lo resuelve igual vía PATH.
-	log.Printf("[BACKEND] Executing: %s %s", gowerPath, strings.Join(args, " "))
+	log.Printf("[BACKEND] Executing: %s %s", gowerPath, strings.Join(redactedArgs(args), " "))
 
 	// Los comandos en background tienen un tope: un `gower` colgado no puede
 	// dejar una goroutine y un proceso vivos indefinidamente. No es un límite de
 	// UX, así que es generoso; los comandos en primer plano no lo llevan porque
 	// el usuario está esperando su resultado y puede cancelar la acción.
-	commandCtx := context.Background()
+	//
+	// Todos cuelgan de baseCtx para que el cierre de la app los cancele.
+	baseCtx := a.baseCtx
+	if baseCtx == nil {
+		baseCtx = context.Background()
+	}
+	commandCtx := baseCtx
 	var cancel context.CancelFunc
 	if background {
 		commandCtx, cancel = context.WithTimeout(commandCtx, backgroundCommandTimeout)
@@ -254,6 +283,10 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 
 	cmd := exec.CommandContext(commandCtx, gowerPath, args...)
 	cmd.Env = os.Environ() // Ensure process environment is passed
+	// Si un descendiente hereda stderr, Wait no vuelve hasta que lo cierre.
+	// Con este tope el proceso se mata igualmente y el evento de timeout llega
+	// cuando toca en vez de esperar al descendiente.
+	cmd.WaitDelay = commandWaitDelay
 
 	if background {
 		// Buffer for stderr
@@ -272,7 +305,7 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 			// antes mataría el comando recién lanzado.
 			defer cancel()
 
-			err := cmd.Wait()
+			err := normalizeWaitDelayError(cmd.Wait())
 			if err != nil {
 				failure := summarizeGowerError(stderr.String())
 				if errors.Is(commandCtx.Err(), context.DeadlineExceeded) {
@@ -295,12 +328,76 @@ func (a *App) RunGowerCommand(args []string, background bool) (string, error) {
 	}
 
 	output, err := cmd.CombinedOutput()
+	err = normalizeWaitDelayError(err)
 	if err != nil {
 		log.Printf("[BACKEND] Command failed: %v\nOutput: %s", err, string(output))
 		return string(output), err
 	}
 
 	return string(output), nil
+}
+
+// normalizeWaitDelayError trata exec.ErrWaitDelay como éxito. Ese error solo
+// aparece cuando el comando terminó con código 0 pero dejó un descendiente con
+// los pipes abiertos (por ejemplo, un `daemon start` que se desacopla): el
+// comando hizo su trabajo y no debe convertirse en un toast de error.
+func normalizeWaitDelayError(err error) error {
+	if errors.Is(err, exec.ErrWaitDelay) {
+		return nil
+	}
+	return err
+}
+
+// redactedArgs devuelve una copia de los argumentos con los secretos tapados,
+// para que el log no guarde API keys. El log es un fichero del usuario que se
+// adjunta en los informes de error, así que no puede contener credenciales.
+func redactedArgs(args []string) []string {
+	safe := append([]string(nil), args...)
+
+	if len(safe) < 2 || safe[0] != "config" {
+		return safe
+	}
+
+	switch safe[1] {
+	case "set":
+		// config set <key>=<value>
+		for i := 2; i < len(safe); i++ {
+			key, _, ok := strings.Cut(safe[i], "=")
+			if ok && isSensitiveConfigKey(key) {
+				safe[i] = key + "=<redacted>"
+			}
+		}
+	case "provider":
+		// config provider add <name> <url> [key]
+		if len(safe) >= 6 && safe[2] == "add" {
+			safe[5] = "<redacted>"
+		}
+	}
+
+	return safe
+}
+
+// isSensitiveConfigKey reconoce las claves de configuración cuyo valor es una
+// credencial. Se compara el último tramo para cubrir tanto `api_key` como
+// `providers.unsplash.api_key`.
+func isSensitiveConfigKey(key string) bool {
+	lower := strings.ToLower(key)
+	if i := strings.LastIndex(lower, "."); i >= 0 {
+		lower = lower[i+1:]
+	}
+
+	switch lower {
+	case "api_key", "apikey", "key", "secret", "token", "password", "passwd":
+		return true
+	}
+
+	for _, suffix := range []string{"_key", "_secret", "_token", "_password"} {
+		if strings.HasSuffix(lower, suffix) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (a *App) resolveGowerPath() (string, error) {

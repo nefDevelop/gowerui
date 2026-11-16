@@ -12,6 +12,9 @@
     ];
     export let currentSort = "Smart";
     export let currentPage = 1;
+    // Las listas cuyo CLI no acepta orden se quedan sin selector en vez de
+    // mostrar un control que no hace nada.
+    export let showSort = true;
 
     const dispatch = createEventDispatcher();
 
@@ -34,20 +37,22 @@
 </script>
 
 <div class="sort-bar glass-card">
-    <div class="left">
-        <span class="material-icons info-icon">sort</span>
-        <select
-            class="sort-select"
-            value={currentSort}
-            onchange={handleSortChange}
-        >
-            {#each sortOptions as option}
-                <option value={option.value}
-                    >{$t(option.label) || option.value}</option
-                >
-            {/each}
-        </select>
-    </div>
+    {#if showSort}
+        <div class="left">
+            <span class="material-icons info-icon">sort</span>
+            <select
+                class="sort-select"
+                value={currentSort}
+                onchange={handleSortChange}
+            >
+                {#each sortOptions as option}
+                    <option value={option.value}
+                        >{$t(option.label) || option.value}</option
+                    >
+                {/each}
+            </select>
+        </div>
+    {/if}
 
     <div class="center">
         <div class="paginator">

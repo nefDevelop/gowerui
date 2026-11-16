@@ -41,6 +41,10 @@ Este documento describe los pasos necesarios y las características planificadas
 - [x] **Verificación del contrato en gowerGUI**: `contract_test.go` descarga/usa el binario y el `gower-contract.json` del tag pineado, los ejecuta sobre un `HOME` aislado y valida las claves `--json`. Cableado en el job `test` del CI.
 - [x] **Bump del pin automatizado**: gower dispara `repository_dispatch` al publicar tag y `bump-sidecar.yml` abre un PR que solo actualiza `.gower-version`.
 - [x] **Instalación local**: `make install` compila, descarga el sidecar del pin (checksum verificado) y deja binario, sidecar, lanzador e icono bajo `~/.local`, sin `sudo`.
+- [x] **Credenciales en el log**: `RunGowerCommand` registraba los argumentos completos, así que `config set providers.unsplash.api_key=...` dejaba la API key en un fichero `0644`. Ahora `redactedArgs` tapa las claves sensibles y el log se crea/corrige a `0600`.
+- [x] **Orden de Favoritos muerto**: el selector de `SortBar` recargaba la lista sin efecto porque `favorites list` no tiene `--sort` en el CLI pineado. Se oculta en Favoritos y se documenta la limitación.
+- [x] **Respuestas fuera de orden**: dos cargas solapadas de una lista podían dejar pintada la respuesta vieja. `wallpaper-list.js` numera las peticiones y descarta las obsoletas.
+- [x] **Comandos huérfanos**: los `gower` en background no se cancelaban al cerrar la app y `Wait` podía quedarse esperando a descendientes con `stderr` heredado. Ahora cuelgan de un contexto cancelable en `OnShutdown` y llevan `cmd.WaitDelay`.
 - [x] **Errores silenciosos en background**: un `set` fallido (por ejemplo, sin backend de wallpaper en niri) no mostraba nada porque el evento `gower-command-finished` no llevaba el resultado y el `stderr` solo iba al stdout de la app. Ahora se emite `gower-command-failed` con el error resumido y la UI lo muestra como toast. La búsqueda tenía el mismo problema por un `catch` vacío: un proveedor caído se pintaba como "No se encontraron resultados."; ahora muestra el motivo en un aviso.
 - [x] **Aplicar un wallpaper desde Buscar o desde la colección**: la UI mandaba `set <id>` con ids de `explore`, que no están en el feed (`wallpaper with ID ... not found`), y `set <ruta>` con los wallpapers locales, que gower interpreta también como id. `SearchPanel` marca sus items con `origin: "search"` y `wallpaperTarget()` elige URL para los resultados de búsqueda e id para el resto; nunca rutas. De paso, el toast recortaba el mensaje con `ellipsis`: ahora parte en varias líneas.
 - [ ] **Tests E2E**: Configurar `playwright.config.js` y escribir los primeros specs.
@@ -57,7 +61,7 @@ Este documento describe los pasos necesarios y las características planificadas
 - [ ] **`Sh -c` retirado sin prueba manual**: hay tests de regresión, pero conviene aplicar un wallpaper en Linux y arrancar el daemon antes de la próxima release.
 - [ ] **Targets `docker-*` del `Makefile`**: son placeholders de la era Tauri y no están implementados.
 - [ ] **`.devcontainer`**: la imagen de Wails está actualizada, pero no se ha validado un `build` completo dentro del contenedor.
-- [ ] **Wails CLI local (v2.13.0) por delante de `go.mod` (v2.12.0)**: un `wails build` a pelo puede bumpear las dependencias sin avisar. Decidir si se sube a propósito o se pinea el CLI.
+- [x] **Wails CLI y librería desalineados**: un `wails build` local subió `go.mod` a v2.13.0 mientras el CI seguía con el CLI v2.12.0. Se alinean ambos en v2.13.0 y se commitearon los bindings regenerados.
 
 ## 🧱 Fase 6: Empaque y robustez
 - [x] **Diagnóstico**: log a fichero con rotación (`~/.local/state/gowerui/gowerui.log`), enlace **Open logs** en Ajustes y modos `--version`/`--doctor`/`--help` que se atienden antes de GTK. `--doctor` valida sidecar, versión contra el pin y permisos, y el workflow lo ejecuta sobre el bundle empaquetado.

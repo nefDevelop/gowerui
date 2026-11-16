@@ -26,6 +26,9 @@
   --spacing-m: 16px;
   --spacing-l: 24px;
   --font-main: 'Outfit', sans-serif;
+  /* Ancho de diseño de la ventana. Si un compositor de tiling la estira más,
+     el contenido se centra en esta franja en lugar de deformarse. */
+  --app-width: 440px;
 }
 
 /* Also support explicit classes if needed */

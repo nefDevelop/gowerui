@@ -41,6 +41,12 @@ export function createWallpaperListStore({
   // miniaturas. Evita re-renders por un dato que no se pinta.
   let cachePath = "";
 
+  // Identifica la última carga lanzada. Una respuesta que llegue después de
+  // otra más reciente se descarta: con la rueda o los eventos de background
+  // hay peticiones solapadas, y sin esto una respuesta vieja podía pisar la
+  // lista buena.
+  let requestToken = 0;
+
   /**
    * Sin cachePath no se pueden construir las miniaturas, así que las cargas
    * anteriores al AppContext se descartan (antes se comprobaba `appContext`).
@@ -85,6 +91,7 @@ export function createWallpaperListStore({
     if (!cachePath) return;
     if (guardConcurrentLoads && state.loading) return;
 
+    const token = ++requestToken;
     const targetPage = reset ? 1 : (page ?? state.page);
 
     if (targetPage !== state.page) {
@@ -106,6 +113,10 @@ export function createWallpaperListStore({
 
       const [result, colorsResult] = await Promise.all(tasks);
 
+      // Llegó una carga posterior mientras esta estaba en vuelo: manda la
+      // última y esta respuesta ya no interesa.
+      if (token !== requestToken) return;
+
       update((current) => ({
         ...current,
         items: mapThumbnails(result || [], cachePath),
@@ -116,9 +127,13 @@ export function createWallpaperListStore({
       }));
       console.log(`[${label}] Lista cargada. Items:`, get(store).items.length);
     } catch (e) {
+      if (token !== requestToken) return;
       console.error(`[${label}] Error al cargar la lista:`, e);
     } finally {
-      update((current) => ({ ...current, loading: false }));
+      // Solo la petición vigente apaga el spinner.
+      if (token === requestToken) {
+        update((current) => ({ ...current, loading: false }));
+      }
     }
   }
 

@@ -62,6 +62,13 @@ func main() {
 		Title:  "gowerui",
 		Width:  440,
 		Height: 750,
+		// El diseño está pensado para 440 px de ancho. Se declara como mínimo y
+		// máximo para que los WMs lo respeten: los flotantes lo aplican al
+		// instante, y los de tiling (niri) acotan con ello el ancho de columna.
+		// La altura no se fija: niri y otros tiles la imponen por diseño, y en
+		// los flotantes el usuario puede necesitar una ventana más alta.
+		MinWidth: 440,
+		MaxWidth: 440,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -127,6 +134,8 @@ func main() {
 		},
 		OnShutdown: func(ctx context.Context) {
 			app.tray.markQuitting()
+			// Matar los gower que sigan en vuelo antes de que muera el proceso.
+			app.shutdown()
 			if app.tray.hasStarted() {
 				systray.Quit()
 			}
@@ -158,6 +167,10 @@ func main() {
 		},
 		Linux: &linux.Options{
 			WindowIsTranslucent: true,
+			// app-id estable para las reglas de los compositores de tiling:
+			// sin esto el nombre depende del ejecutable y las recetas de niri
+			// o sway dejarían de coincidir.
+			ProgramName: "gowerui",
 		},
 	})
 
