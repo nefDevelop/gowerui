@@ -154,6 +154,40 @@ describe("wallpaper-list store", () => {
     expect(get(store).loading).toBe(false);
   });
 
+  it("una respuesta vieja no pisa a la carga más reciente", async () => {
+    const first = deferred();
+    const second = deferred();
+    let calls = 0;
+    const fetchPage = vi.fn(() => {
+      calls += 1;
+      return calls === 1 ? first.promise : second.promise;
+    });
+    const color = writable("");
+    const store = createWallpaperListStore({
+      label: "test",
+      pageSize: 9,
+      fetchPage,
+      fetchColors: vi.fn().mockResolvedValue([]),
+      color,
+    });
+    store.setCachePath("/cache");
+
+    const firstLoad = store.load();
+    const secondLoad = store.load();
+
+    // La segunda termina antes, así que debe quedarse con sus items.
+    second.resolve([{ id: 2, url: "http://x/2.png" }]);
+    await secondLoad;
+    expect(get(store).items.map((item) => item.id)).toEqual([2]);
+
+    // La primera llega tarde: se descarta y no pisa la lista.
+    first.resolve([{ id: 1, url: "http://x/1.png" }]);
+    await firstLoad;
+
+    expect(get(store).items.map((item) => item.id)).toEqual([2]);
+    expect(get(store).loading).toBe(false);
+  });
+
   it("con guard ignora una segunda carga simultánea", async () => {
     const pending = deferred();
     const fetchPage = vi.fn(() => pending.promise);

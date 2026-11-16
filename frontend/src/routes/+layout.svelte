@@ -44,8 +44,12 @@
 
 <style>
   .app-container {
-    width: 100%;
+    /* El ancho de diseño lo fija el backend, pero algunos compositores de
+       tiling ignoran las pistas de tamaño. Centrar la columna evita que el
+       contenido se estire y deja el fondo a sangre. */
+    width: min(100%, var(--app-width));
     height: 100%;
+    margin-inline: auto;
     overflow: hidden;
     background: var(--background);
   }

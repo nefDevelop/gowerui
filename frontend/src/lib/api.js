@@ -312,6 +312,10 @@ export const gower = {
   },
   updateFeed: () => runGower(["feed", "update"], false, true), // Background
   /**
+   * `sort` se acepta por la firma común de los stores, pero `favorites list`
+   * del CLI pineado no tiene `--sort`: no se envía y la UI oculta el selector.
+   * Si gower incorpora el flag, aquí solo hay que añadir `--sort`.
+   *
    * @param {string} [color]
    * @param {number} [page]
    * @param {number} [limit]

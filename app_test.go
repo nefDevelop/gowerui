@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -48,6 +50,37 @@ func fakeGower(t *testing.T, script string) string {
 	t.Setenv("PATH", dir)
 
 	return path
+}
+
+// requireSleepPath resuelve sleep antes de que fakeGower restrinja el PATH.
+// Los tests que necesitan un comando colgado escriben la ruta absoluta en el
+// script, porque el PATH del test solo contiene el directorio del fake.
+func requireSleepPath(t *testing.T) string {
+	t.Helper()
+
+	path, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("sleep no disponible en el host")
+	}
+	return path
+}
+
+// killPIDFromFile mata el proceso cuyo PID se guardó en path. Es best-effort:
+// se usa para no dejar huérfanos de los tests, no para validar nada.
+func killPIDFromFile(path string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || pid <= 0 {
+		return
+	}
+
+	if process, err := os.FindProcess(pid); err == nil {
+		_ = process.Kill()
+	}
 }
 
 // isolateHome apunta HOME y USERPROFILE a un directorio temporal vacío, para que
@@ -821,7 +854,10 @@ func TestRunGowerCommandBackgroundSuccessDoesNotEmitFailure(t *testing.T) {
 // Un gower colgado no puede dejar el proceso vivo para siempre: al agotar su
 // tope, el comando en background se mata y el fallo llega a la UI.
 func TestRunGowerCommandBackgroundTimesOut(t *testing.T) {
-	fakeGower(t, "sleep 5\n")
+	// `exec` sustituye el shell por sleep: así el tope mata el único proceso
+	// vivo. Si sh quedara esperando a un hijo, este heredaría el pipe de
+	// stderr y cmd.Wait() no volvería hasta que el hijo terminase.
+	fakeGower(t, fmt.Sprintf("exec %q 5\n", requireSleepPath(t)))
 
 	previous := backgroundCommandTimeout
 	backgroundCommandTimeout = 100 * time.Millisecond
@@ -842,6 +878,170 @@ func TestRunGowerCommandBackgroundTimesOut(t *testing.T) {
 	}
 	if !strings.Contains(payload.Error, "timed out") {
 		t.Errorf("Error = %q, se esperaba mencionar el timeout", payload.Error)
+	}
+}
+
+// Si el comando deja un descendiente vivo con stderr heredado, Wait no puede
+// esperar a que lo cierre: WaitDelay corta los pipes y el aviso de timeout
+// llega a su hora, no cuando termina el descendiente.
+func TestRunGowerCommandBackgroundTimeoutCutsInheritedStderr(t *testing.T) {
+	// Sin exec: sh lanza sleep como hijo y muere al agotarse el tope, pero el
+	// sleep sigue vivo con el pipe de stderr abierto. El PID se guarda para
+	// matarlo al final: si no, mantendría abierto el pipe de `go test` y la
+	// suite esperaría a que terminase por su cuenta.
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	fakeGower(t, fmt.Sprintf("%s 5 &\necho $! > %q\nwait\n", requireSleepPath(t), pidFile))
+	t.Cleanup(func() { killPIDFromFile(pidFile) })
+
+	previousTimeout := backgroundCommandTimeout
+	backgroundCommandTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { backgroundCommandTimeout = previousTimeout })
+
+	previousDelay := commandWaitDelay
+	commandWaitDelay = 100 * time.Millisecond
+	t.Cleanup(func() { commandWaitDelay = previousDelay })
+
+	recorder := &eventRecorder{}
+	app := NewApp()
+	app.emit = recorder.emit
+
+	if _, err := app.RunGowerCommand([]string{"set", "slow"}, true); err != nil {
+		t.Fatalf("RunGowerCommand() error inesperado: %v", err)
+	}
+
+	start := time.Now()
+	evt := recorder.waitFor(t, "gower-command-failed", 3*time.Second)
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("el evento tardó %s; WaitDelay no está acotando los pipes", elapsed)
+	}
+
+	payload, ok := evt.data[0].(backgroundCommandFailure)
+	if !ok {
+		t.Fatalf("data[0] = %T, se esperaba backgroundCommandFailure", evt.data[0])
+	}
+	if !strings.Contains(payload.Error, "timed out") {
+		t.Errorf("Error = %q, se esperaba mencionar el timeout", payload.Error)
+	}
+}
+
+// Al cerrar la app, los comandos en background deben morir en vez de quedar
+// huérfanos esperando a que les llegue el timeout.
+func TestRunGowerCommandBackgroundIsCancelledOnShutdown(t *testing.T) {
+	fakeGower(t, fmt.Sprintf("exec %q 10\n", requireSleepPath(t)))
+
+	recorder := &eventRecorder{}
+	app := NewApp()
+	app.emit = recorder.emit
+
+	if _, err := app.RunGowerCommand([]string{"set", "slow"}, true); err != nil {
+		t.Fatalf("RunGowerCommand() error inesperado: %v", err)
+	}
+
+	app.shutdown()
+
+	evt := recorder.waitFor(t, "gower-command-failed", 2*time.Second)
+	payload, ok := evt.data[0].(backgroundCommandFailure)
+	if !ok {
+		t.Fatalf("data[0] = %T, se esperaba backgroundCommandFailure", evt.data[0])
+	}
+	if strings.Contains(payload.Error, "timed out") {
+		t.Errorf("Error = %q; el cierre debe cancelar, no agotar el timeout", payload.Error)
+	}
+
+	recorder.waitFor(t, "gower-command-finished", 2*time.Second)
+}
+
+// Un comando que termina bien pero deja un descendiente con stderr abierto (un
+// `daemon start` desacoplado) no puede reportarse como fallo: WaitDelay cierra
+// los pipes y el ErrWaitDelay resultante se trata como éxito.
+func TestRunGowerCommandBackgroundTreatsWaitDelayAsSuccess(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	fakeGower(t, fmt.Sprintf("%s 5 &\necho $! > %q\n", requireSleepPath(t), pidFile))
+	t.Cleanup(func() { killPIDFromFile(pidFile) })
+
+	previousDelay := commandWaitDelay
+	commandWaitDelay = 100 * time.Millisecond
+	t.Cleanup(func() { commandWaitDelay = previousDelay })
+
+	recorder := &eventRecorder{}
+	app := NewApp()
+	app.emit = recorder.emit
+
+	if _, err := app.RunGowerCommand([]string{"daemon", "start"}, true); err != nil {
+		t.Fatalf("RunGowerCommand() error inesperado: %v", err)
+	}
+
+	recorder.waitFor(t, "gower-command-finished", 2*time.Second)
+	if failures := recorder.count("gower-command-failed"); failures != 0 {
+		t.Errorf("se emitieron %d eventos gower-command-failed; se esperaba 0", failures)
+	}
+}
+
+// Las credenciales no pueden acabar en el log: se adjunta a los informes de
+// error y es legible en el disco del usuario.
+func TestRedactedArgs(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{
+			name: "api key de config set",
+			args: []string{"config", "set", "providers.unsplash.api_key=secreto123"},
+			want: []string{"config", "set", "providers.unsplash.api_key=<redacted>"},
+		},
+		{
+			name: "token con otro nombre",
+			args: []string{"config", "set", "providers.custom.access_token=abc"},
+			want: []string{"config", "set", "providers.custom.access_token=<redacted>"},
+		},
+		{
+			name: "clave no sensible se conserva",
+			args: []string{"config", "set", "behavior.change_interval=30"},
+			want: []string{"config", "set", "behavior.change_interval=30"},
+		},
+		{
+			name: "clave de provider posicional",
+			args: []string{"config", "provider", "add", "custom", "https://example.com", "secreto"},
+			want: []string{"config", "provider", "add", "custom", "https://example.com", "<redacted>"},
+		},
+		{
+			name: "provider sin clave",
+			args: []string{"config", "provider", "add", "custom", "https://example.com"},
+			want: []string{"config", "provider", "add", "custom", "https://example.com"},
+		},
+		{
+			name: "comando normal intacto",
+			args: []string{"set", "https://example.com/wallpaper.jpg"},
+			want: []string{"set", "https://example.com/wallpaper.jpg"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := redactedArgs(c.args)
+			if strings.Join(got, " ") != strings.Join(c.want, " ") {
+				t.Errorf("redactedArgs() = %q, se esperaba %q", got, c.want)
+			}
+		})
+	}
+}
+
+func TestIsSensitiveConfigKey(t *testing.T) {
+	cases := map[string]bool{
+		"providers.unsplash.api_key":    true,
+		"providers.custom.access_token": true,
+		"providers.custom.secret":       true,
+		"database.password":             true,
+		"behavior.change_interval":      false,
+		"paths.wallpapers":              false,
+		"ui.show_colors":                false,
+	}
+
+	for key, want := range cases {
+		if got := isSensitiveConfigKey(key); got != want {
+			t.Errorf("isSensitiveConfigKey(%q) = %v, se esperaba %v", key, got, want)
+		}
 	}
 }
 

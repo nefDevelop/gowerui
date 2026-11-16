@@ -61,10 +61,15 @@ func setupLogging() (string, error) {
 
 	rotateLog(path)
 
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	// 0600: el log puede contener rutas, ids y mensajes de error del usuario,
+	// así que no debe ser legible por otras cuentas de la máquina.
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return path, err
 	}
+	// Los logs creados por versiones anteriores siguen en 0644; abrir no cambia
+	// el modo, así que se corrige aquí.
+	_ = file.Chmod(0o600)
 
 	// El fichero se mantiene abierto durante toda la vida del proceso: el
 	// MultiWriter lo necesita y cerrarlo aquí dejaría los logs huérfanos.
