@@ -26,6 +26,14 @@ export function GetGowerStatus() {
   return window['go']['main']['App']['GetGowerStatus']();
 }
 
+export function GetLogPath() {
+  return window['go']['main']['App']['GetLogPath']();
+}
+
+export function OpenLogFile() {
+  return window['go']['main']['App']['OpenLogFile']();
+}
+
 export function OpenPath(arg1) {
   return window['go']['main']['App']['OpenPath'](arg1);
 }

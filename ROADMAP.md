@@ -61,7 +61,7 @@ Este documento describe los pasos necesarios y las características planificadas
 - [ ] **`Sh -c` retirado sin prueba manual**: hay tests de regresión, pero conviene aplicar un wallpaper en Linux y arrancar el daemon antes de la próxima release.
 - [ ] **Targets `docker-*` del `Makefile`**: son placeholders de la era Tauri y no están implementados.
 - [ ] **`.devcontainer`**: la imagen de Wails está actualizada, pero no se ha validado un `build` completo dentro del contenedor.
-- [ ] **Wails CLI local (v2.13.0) por delante de `go.mod` (v2.12.0)**: un `wails build` a pelo puede bumpear las dependencias sin avisar. Decidir si se sube a propósito o se pinea el CLI.
+- [x] **Wails CLI y librería desalineados**: un `wails build` local subió `go.mod` a v2.13.0 mientras el CI seguía con el CLI v2.12.0. Se alinean ambos en v2.13.0 y se commitearon los bindings regenerados.
 
 ## 🧱 Fase 6: Empaque y robustez
 - [x] **Diagnóstico**: log a fichero con rotación (`~/.local/state/gowerui/gowerui.log`), enlace **Open logs** en Ajustes y modos `--version`/`--doctor`/`--help` que se atienden antes de GTK. `--doctor` valida sidecar, versión contra el pin y permisos, y el workflow lo ejecuta sobre el bundle empaquetado.
