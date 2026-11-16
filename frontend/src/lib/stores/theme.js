@@ -1,85 +1,107 @@
-import { writable, derived } from "svelte/store";
+import { writable } from "svelte/store";
 
 /**
  * @typedef {'light' | 'dark' | 'system'} Theme
  */
 
-function createThemeStore() {
-  // 1. Get saved theme from localStorage or default to 'system' (or 'dark' as safe fallback)
-  /** @type {Theme} */
-  const savedTheme = typeof localStorage !== "undefined" ? /** @type {Theme} */ (localStorage.getItem("gower-theme")) : "system";
+const STORAGE_KEY = "gower-theme";
+const LIGHT_QUERY = "(prefers-color-scheme: light)";
+/** @type {Set<string>} */
+const VALID_THEMES = new Set(["light", "dark", "system"]);
 
-  const initialTheme = savedTheme || "system";
+/**
+ * Lee el tema guardado. Un valor ausente o desconocido cae en `system`: la
+ * app debe seguir al escritorio salvo que el usuario haya elegido otra cosa.
+ *
+ * @returns {Theme}
+ */
+function readStoredTheme() {
+  if (typeof localStorage === "undefined") return "system";
 
-  const { subscribe, set, update } = writable(initialTheme);
-
-  return {
-    subscribe,
-    /** @param {Theme} t */
-    set: (t) => {
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem("gower-theme", t);
-      }
-      // Update the document class immediately
-      updateDOM(t);
-      set(t);
-    },
-    toggle: () => {
-      update((current) => {
-        // Simple toggle for the navbar button: Light -> Dark -> Light (ignoring system for the toggle button to keep it simple, or maybe cycle?)
-        // If system, we determine what it resolves to and flip it.
-        // Actually, the plan says we replace the toggle with a selector in settings.
-        // But for the navbar quick toggle, we might want to keep it simple:
-        // If current is 'light' -> go 'dark'. Else -> go 'light'.
-        // This effectively overrides 'system' if used.
-        const newTheme = current === "light" ? "dark" : "light";
-        localStorage.setItem("gower-theme", newTheme);
-        updateDOM(newTheme);
-        return newTheme;
-      });
-    },
-  };
+  const saved = localStorage.getItem(STORAGE_KEY);
+  return VALID_THEMES.has(saved ?? "") ? /** @type {Theme} */ (saved) : "system";
 }
 
 /**
+ * Tema efectivo que está aplicando el escritorio en este momento.
+ *
+ * @returns {'light' | 'dark'}
+ */
+function systemTheme() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return "dark";
+  }
+
+  return window.matchMedia(LIGHT_QUERY).matches ? "light" : "dark";
+}
+
+/**
+ * Pinta el tema en el documento. `system` se resuelve contra
+ * `prefers-color-scheme`, que es lo que expone el escritorio a la webview.
+ *
  * @param {Theme} theme
  */
 function updateDOM(theme) {
   if (typeof document === "undefined") return;
 
+  const effective = theme === "system" ? systemTheme() : theme;
   const root = document.documentElement;
-  const isSystem = theme === "system";
 
-  let effectiveTheme = theme;
-  if (isSystem) {
-    const systemLight = window.matchMedia("(prefers-color-scheme: light)").matches;
-    effectiveTheme = systemLight ? "light" : "dark";
+  root.classList.toggle("light-theme", effective === "light");
+  root.classList.toggle("dark-theme", effective === "dark");
+}
+
+function createThemeStore() {
+  /** @type {Theme} */
+  let mode = readStoredTheme();
+
+  const { subscribe, set } = writable(mode);
+
+  /**
+   * Aplica y persiste un tema. El arranque no persiste: solo lo hace una
+   * elección explícita del usuario.
+   *
+   * @param {Theme} next
+   */
+  function apply(next) {
+    mode = next;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, next);
+    }
+    updateDOM(next);
+    set(next);
   }
 
-  if (effectiveTheme === "light") {
-    root.classList.add("light-theme");
-    root.classList.remove("dark-theme");
-  } else {
-    root.classList.add("dark-theme");
-    root.classList.remove("light-theme");
+  // Aplicar antes de devolver el store: la primera pintura ya sale con el
+  // tema correcto y no hay parpadeo de oscuro a claro.
+  updateDOM(mode);
+
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+    const media = window.matchMedia(LIGHT_QUERY);
+    const onSystemChange = () => {
+      // Con una elección manual (light/dark) el escritorio no manda.
+      if (mode === "system") updateDOM(mode);
+    };
+
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", onSystemChange);
+    } else if (typeof media.addListener === "function") {
+      // WebKitGTK antiguo: MediaQueryList no implementa addEventListener.
+      media.addListener(onSystemChange);
+    }
   }
 
-  // console.log(`[Theme] Applies: ${effectiveTheme} (Mode: ${theme})`);
+  return {
+    subscribe,
+    /** @param {Theme} t */
+    set: apply,
+    toggle: () => {
+      // Se alterna respecto al tema efectivo, no al valor guardado: si el
+      // sistema está en claro y el modo es `system`, el botón va a oscuro.
+      const effective = mode === "system" ? systemTheme() : mode;
+      apply(effective === "light" ? "dark" : "light");
+    },
+  };
 }
 
 export const theme = createThemeStore();
-
-// Initialize listener for system changes if mode is system
-if (typeof window !== "undefined") {
-  window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", (e) => {
-    // We only care if the current store value is 'system'
-    // But we can't easily access the store value here without subscribing.
-    // A cleaner way is to re-run updateDOM if the store is 'system'.
-    // For simplicity, we can just check localStorage or let the store handle it if we want to be purely reactive.
-    // Let's just blindly updateDOM with the current storage value if it's system.
-    const current = localStorage.getItem("gower-theme");
-    if (current === "system") {
-      updateDOM("system");
-    }
-  });
-}
